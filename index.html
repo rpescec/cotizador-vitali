@@ -80,29 +80,11 @@ select {
   gap: 4px;
 }
 
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand-mark::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.2);
-}
-
-.brand h1 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(2.4rem, 4vw, 3.4rem);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 0.95;
-  color: var(--navy);
+.brand-logo {
+  height: 56px;
+  width: auto;
+  max-width: min(340px, 70vw);
+  margin-bottom: 2px;
 }
 
 .brand p {
@@ -264,22 +246,14 @@ input[readonly] {
 }
 
 .sheet-brand {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--navy);
-  line-height: 1;
+  display: flex;
+  align-items: center;
 }
 
-.sheet-brand span {
-  display: block;
-  margin-top: 6px;
-  font-family: var(--font-body);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--gold);
+.sheet-logo {
+  height: 50px;
+  width: auto;
+  max-width: 300px;
 }
 
 .sheet-meta {
@@ -716,6 +690,25 @@ input[readonly] {
   }
 }
 
+.bottombar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 18px 22px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(213, 221, 230, 0.9);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow);
+}
+
+.btn-print-lg {
+  padding: 14px 26px;
+  font-size: 1rem;
+}
+
 @media (max-width: 980px) {
   .layout {
     grid-template-columns: 1fr;
@@ -737,6 +730,11 @@ input[readonly] {
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 9mm;
+  }
+
   body {
     background: #fff;
   }
@@ -748,7 +746,8 @@ input[readonly] {
 
   .topbar,
   .panel,
-  .live-badge {
+  .live-badge,
+  .bottombar {
     display: none !important;
   }
 
@@ -764,7 +763,105 @@ input[readonly] {
   }
 
   .sheet {
-    padding: 12mm;
+    padding: 0;
+    min-height: 0;
+  }
+
+  /* Mantener los fondos de color del diseño en el PDF */
+  .sheet-head,
+  .block h3,
+  .table .highlight td,
+  .uf-note,
+  .tipo-m2 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Compactar para caber en una sola página */
+  .sheet-head {
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+
+  .sheet-logo {
+    max-height: 42px;
+  }
+
+  .sheet-brand {
+    font-size: 1.5rem;
+  }
+
+  .sheet-meta .doc-title {
+    font-size: 1.35rem;
+    margin-bottom: 4px;
+  }
+
+  .sheet-meta .value {
+    font-size: 0.95rem;
+  }
+
+  .block {
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+
+  .block h3 {
+    padding: 4px 8px;
+    margin-bottom: 6px;
+    font-size: 0.7rem;
+  }
+
+  .grid-2 {
+    gap: 1px 22px;
+  }
+
+  .kv {
+    padding: 2px 8px;
+  }
+
+  .kv .k {
+    font-size: 0.76rem;
+  }
+
+  .kv .v {
+    font-size: 0.78rem;
+  }
+
+  .table {
+    font-size: 0.82rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 4px 8px;
+  }
+
+  .table th {
+    font-size: 0.68rem;
+  }
+
+  .uf-note {
+    font-size: 0.76rem;
+    margin-bottom: 6px;
+  }
+
+  .terms {
+    font-size: 0.66rem;
+    line-height: 1.28;
+    column-count: 2;
+    column-gap: 20px;
+    padding-left: 16px;
+  }
+
+  .terms li {
+    margin-bottom: 2px;
+    break-inside: avoid;
+  }
+
+  .sheet-foot {
+    margin-top: 10px;
+    padding-top: 8px;
+    font-size: 0.72rem;
   }
 }
 
@@ -1076,9 +1173,8 @@ function renderShell() {
   document.querySelector("#app").innerHTML = `
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark"></div>
-        <h1>Vitali Suites</h1>
-        <p>Cotizador online · Senior Living · Chicureo</p>
+        <img class="brand-logo" src="logo-vitali.svg" alt="Vitali Suites · Senior Living" />
+        <p>Cotizador online · Chicureo</p>
       </div>
       <div class="actions">
         <button type="button" class="btn btn-ghost" id="btn-reset">Limpiar</button>
@@ -1180,6 +1276,11 @@ function renderShell() {
         <article class="sheet" id="sheet"></article>
       </section>
     </div>
+
+    <div class="bottombar">
+      <button type="button" class="btn btn-ghost" id="btn-reset-bottom">Nueva cotización</button>
+      <button type="button" class="btn btn-primary btn-print-lg" id="btn-print-bottom">Imprimir / Descargar PDF</button>
+    </div>
   `;
 }
 
@@ -1233,8 +1334,7 @@ function renderSheet(state, totals) {
   document.querySelector("#sheet").innerHTML = `
     <div class="sheet-head">
       <div class="sheet-brand">
-        Vitali Suites
-        <span>Senior Living</span>
+        <img class="sheet-logo" src="logo-vitali.svg" alt="Vitali Suites · Senior Living" />
       </div>
       <div class="sheet-meta">
         <div class="doc-title">Cotización</div>
@@ -1376,7 +1476,12 @@ async function fetchUfDelDia() {
   ufMeta = { ...ufMeta, status: "loading", message: "" };
   updateUfStatus();
 
-  const endpoints = ["/api/mindicador", "https://mindicador.cl/api"];
+  // En desarrollo (localhost) usamos el proxy de Vite para evitar CORS;
+  // en el sitio publicado vamos directo a mindicador.cl (sin 404 ni latencia extra).
+  const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const endpoints = isLocalhost
+    ? ["/api/mindicador", "https://mindicador.cl/api"]
+    : ["https://mindicador.cl/api"];
   let lastError = null;
 
   for (const url of endpoints) {
@@ -1473,9 +1578,7 @@ function boot() {
     });
   });
 
-  document.querySelector("#btn-uf").addEventListener("click", () => applyUf());
-  document.querySelector("#btn-print").addEventListener("click", () => window.print());
-  document.querySelector("#btn-reset").addEventListener("click", async () => {
+  const resetCotizacion = () => {
     const ufActual = form.elements.namedItem("uf").value;
     fillForm(form, {
       ...DEFAULTS,
@@ -1484,7 +1587,14 @@ function boot() {
     });
     updateTipoUI(form, "");
     refresh();
-  });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  document.querySelector("#btn-uf").addEventListener("click", () => applyUf());
+  document.querySelector("#btn-print").addEventListener("click", () => window.print());
+  document.querySelector("#btn-print-bottom").addEventListener("click", () => window.print());
+  document.querySelector("#btn-reset").addEventListener("click", resetCotizacion);
+  document.querySelector("#btn-reset-bottom").addEventListener("click", resetCotizacion);
 
   refresh();
   applyUf();
