@@ -1880,18 +1880,30 @@ async function generarPdfBlob(filename) {
     }
   }
 
-  window.scrollTo(0, 0);
-  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const opt = {
+    margin: 9,
+    filename,
+    image: { type: "jpeg", quality: PDF_QUALITY },
+    html2canvas: { scale: PDF_SCALE, backgroundColor: "#ffffff", useCORS: true },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+  };
 
   try {
-    const opt = {
-      margin: 9,
-      filename,
-      image: { type: "jpeg", quality: PDF_QUALITY },
-      html2canvas: { scale: PDF_SCALE, backgroundColor: "#ffffff", useCORS: true },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    };
-    return await window.html2pdf().set(opt).from(sheet).outputPdf("blob");
+    let blob = null;
+    // Reintenta hasta obtener un PDF válido de 1 página. En algunos navegadores
+    // html2canvas captura antes de que se aplique el compactado (→ 2 páginas) o
+    // el layout no alcanza a asentarse; una espera mayor lo resuelve.
+    for (let intento = 1; intento <= 3; intento++) {
+      window.scrollTo(0, 0);
+      void sheet.offsetHeight; // fuerza recálculo de layout con el estilo compacto
+      await new Promise((r) => setTimeout(r, 100 * intento));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      blob = await window.html2pdf().set(opt).from(sheet).outputPdf("blob");
+      const paginas = await contarPaginasPdf(blob);
+      if (blob && blob.size >= 80000 && paginas === 1) break; // salió bien
+      console.warn(`PDF intento ${intento}: size=${blob && blob.size}, paginas=${paginas}`);
+    }
+    return blob;
   } finally {
     style.remove();
     if (logo && origLogoSrc !== null) logo.setAttribute("src", origLogoSrc);
