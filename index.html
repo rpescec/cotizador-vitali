@@ -1077,7 +1077,6 @@ const TIPOLOGIAS = {
 };
 
 const COT_STORAGE_KEY = "vs-cotizador-correlativo";
-const COT_SESSION_KEY = "vs-cotizador-cot-actual";
 
 /** Habitar 1 → 2032 / 6 años / 72 cuotas … Habitar 10 → 2041 / 15 años / 180 cuotas */
 const HABITARES = Object.fromEntries(
@@ -1845,6 +1844,16 @@ async function logoPngDataUri() {
   return logoPngCache;
 }
 
+/** Cuenta las páginas de un PDF (Blob) para validar que sea de 1 sola página. */
+async function contarPaginasPdf(blob) {
+  try {
+    const txt = new TextDecoder("latin1").decode(new Uint8Array(await blob.arrayBuffer()));
+    return (txt.match(/\/Type\s*\/Page[^s]/g) || []).length;
+  } catch {
+    return 0;
+  }
+}
+
 /** Genera el PDF de la hoja de cotización y devuelve un Blob.
  *  Renderiza el #sheet REAL (no un clon: clonar hace que html2canvas salga en
  *  blanco al generar más de una vez sin recargar). Se hace scroll al tope durante
@@ -1915,6 +1924,24 @@ async function enviarAutomatico(form, state, totals, setStatus) {
   setStatus("Generando PDF y enviando…", "loading");
   try {
     const pdfBlob = await generarPdfBlob(filename);
+
+    // Red de seguridad: NUNCA enviar un PDF vacío o de más de 1 página
+    // (evita que le llegue una cotización en blanco al cliente).
+    const paginas = await contarPaginasPdf(pdfBlob);
+    if (!pdfBlob || pdfBlob.size < 80000 || paginas !== 1) {
+      console.warn("PDF inválido, no se envía", {
+        size: pdfBlob && pdfBlob.size,
+        paginas,
+        dpr: window.devicePixelRatio,
+        win: window.innerWidth + "x" + window.innerHeight,
+      });
+      setStatus(
+        "⚠️ El PDF no se generó bien (no se envió el correo para no mandar una cotización en blanco). Reinténtalo, o usa «Imprimir / PDF» y adjúntalo a mano.",
+        "error"
+      );
+      return;
+    }
+
     // Se envía el PDF como ARCHIVO (multipart/form-data): no dispara preflight y
     // evita el límite de mod_security para cuerpos que no son archivos (~128 KB).
     const fd = new FormData();
