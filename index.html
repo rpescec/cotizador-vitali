@@ -1770,6 +1770,11 @@ function buildEmailBody(state, totals) {
   return lineas.filter((l) => l !== null && l !== undefined).join("\n");
 }
 
+/** Valida que sea UN solo correo bien formado (sin espacios ni texto extra) */
+function esEmailValido(e) {
+  return /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test((e || "").trim());
+}
+
 /** Abre el correo del vendedor con destinatario, CC al CRM, asunto y cuerpo listos */
 function enviarPorCorreo(form, state, totals) {
   if (!totals.tipo) {
@@ -1777,8 +1782,8 @@ function enviarPorCorreo(form, state, totals) {
     return;
   }
   const to = (state.correo || "").trim();
-  if (!to) {
-    alert("Ingresa el correo electrónico del cliente para enviar la cotización.");
+  if (!esEmailValido(to)) {
+    alert("Ingresa un correo electrónico válido del cliente.");
     const el = form.elements.namedItem("correo");
     if (el) el.focus();
     return;
@@ -1966,8 +1971,8 @@ async function enviarAutomatico(form, state, totals, setStatus) {
     const fd = new FormData();
     fd.append("token", MAILER_TOKEN);
     fd.append("to", to);
-    fd.append("cc", [CRM_EMAIL, sellerEmail].filter(Boolean).join(","));
-    fd.append("replyTo", sellerEmail);
+    fd.append("cc", [CRM_EMAIL, sellerEmail].filter(esEmailValido).join(","));
+    fd.append("replyTo", esEmailValido(sellerEmail) ? sellerEmail : "");
     fd.append("subject", subject);
     fd.append("body", body);
     fd.append("pdf", pdfBlob, filename);
@@ -2105,9 +2110,20 @@ function boot() {
       alert("Selecciona una tipología antes de enviar la cotización.");
       return;
     }
-    if (!(pre.correo || "").trim()) {
-      alert("Ingresa el correo electrónico del cliente para enviar la cotización.");
+    if (!esEmailValido(pre.correo)) {
+      alert("Ingresa un correo electrónico válido del cliente (un solo correo, sin espacios ni texto extra).");
       const el = form.elements.namedItem("correo");
+      if (el) el.focus();
+      return;
+    }
+    // El correo del ejecutivo(a), si se completa, debe ser SOLO un correo válido
+    // (evita que se peguen contraseñas u otro texto que rompan el envío).
+    const sellerRaw = (pre.ejecutivoCorreo || "").trim();
+    if (sellerRaw && !esEmailValido(sellerRaw)) {
+      alert(
+        "El «Correo del ejecutivo(a)» no es válido. Escribe solo tu correo (sin contraseñas ni texto extra), o déjalo vacío."
+      );
+      const el = form.elements.namedItem("ejecutivoCorreo");
       if (el) el.focus();
       return;
     }
