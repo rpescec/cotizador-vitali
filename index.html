@@ -1761,7 +1761,7 @@ function buildEmailBody(state, totals) {
       : "Los montos en pesos se calcularán según el valor UF del día.",
     "Cotización válida por 15 (quince) días corridos a partir de su emisión.",
     "",
-    "Adjunto el detalle completo en PDF. Quedo atento(a) a sus comentarios.",
+    "Adjunto la cotización y la ficha del departamento en PDF. Quedo atento(a) a sus comentarios.",
     "",
     "Saludos cordiales,",
     state.ejecutivo ? state.ejecutivo : "",
@@ -1973,6 +1973,8 @@ async function enviarAutomatico(form, state, totals, setStatus) {
     fd.append("to", to);
     fd.append("cc", [CRM_EMAIL, sellerEmail].filter(esEmailValido).join(","));
     fd.append("replyTo", esEmailValido(sellerEmail) ? sellerEmail : "");
+    // El mailer adjunta la ficha de esta tipología (guardada en su carpeta tipologias/)
+    fd.append("tipologiaId", totals.tipo ? totals.tipo.id : "");
     fd.append("subject", subject);
     fd.append("body", body);
     fd.append("pdf", pdfBlob, filename);
@@ -1988,8 +1990,9 @@ async function enviarAutomatico(form, state, totals, setStatus) {
     );
   } catch (err) {
     console.error("Error al enviar la cotización", err);
+    const detalle = err && err.message ? ` (${err.message})` : "";
     setStatus(
-      "⚠️ No se pudo enviar automáticamente. Descarga el PDF con «Imprimir / PDF» y envíalo manualmente.",
+      `⚠️ No se pudo enviar${detalle}. Descarga el PDF con «Imprimir / PDF» y envíalo manualmente.`,
       "error"
     );
   }
