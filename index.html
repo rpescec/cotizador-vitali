@@ -1017,6 +1017,9 @@ input[readonly] {
 const PRECIO_UF_M2 = 90;
 const PIE_MIN = 10;
 const PIE_STD = 15;
+const DESC_MAX = 2; // tope de descuento (%)
+const BALLOON_MAX = 35; // tope de cuota final / balloon (%)
+const PIE_MIN_BALLOON = 15; // cuota inicial mínima cuando hay balloon (%)
 
 /** Correo del CRM (Kommo) que siempre va en copia (CC) al enviar la cotización. */
 const CRM_EMAIL = "vitalisuites@mail.kommo.com";
@@ -1118,6 +1121,8 @@ const DEFAULTS = {
   fecha: todayInputDate(),
   uf: "",
   piePct: PIE_STD,
+  descPct: "",
+  balloonPct: "",
 };
 
 /** @type {{ valor: number|null, fecha: string|null, status: 'idle'|'loading'|'ok'|'error', message: string }} */
@@ -1267,10 +1272,25 @@ function precioFromTipologia(tipo) {
 function calc(state) {
   const tipo = getTipologia(state.tipologiaId);
   const habitar = getHabitar(state.habitarId);
-  const precio = precioFromTipologia(tipo);
+  const precioBase = precioFromTipologia(tipo);
+
+  // Descuento (% del precio de venta), tope DESC_MAX
+  let descPctNum = Number(state.descPct) || 0;
+  if (descPctNum < 0) descPctNum = 0;
+  if (descPctNum > DESC_MAX) descPctNum = DESC_MAX;
+  const descUf = excelRound(precioBase * (descPctNum / 100), 2);
+  const precio = excelRound(precioBase - descUf, 2); // precio final (con descuento)
+
+  // Cuota final / balloon (% del precio), tope BALLOON_MAX
+  let balloonPctNum = Number(state.balloonPct) || 0;
+  if (balloonPctNum < 0) balloonPctNum = 0;
+  if (balloonPctNum > BALLOON_MAX) balloonPctNum = BALLOON_MAX;
+
+  // Cuota inicial: mínimo PIE_MIN, o PIE_MIN_BALLOON si hay balloon
+  const pieMin = balloonPctNum > 0 ? PIE_MIN_BALLOON : PIE_MIN;
   let piePctNum = Number(state.piePct);
   if (!Number.isFinite(piePctNum)) piePctNum = PIE_STD;
-  if (piePctNum < PIE_MIN) piePctNum = PIE_MIN;
+  if (piePctNum < pieMin) piePctNum = pieMin;
   if (piePctNum > 100) piePctNum = 100;
   const piePct = piePctNum / 100;
   const uf = Number(state.uf) || 0;
@@ -1278,23 +1298,38 @@ function calc(state) {
   const cuotas = habitar ? habitar.cuotas : 0;
   const pieUf = excelRound(precio * piePct, 2);
   const saldo = excelRound(precio - pieUf, 2);
-  const cuotaUf = cuotas > 0 && precio > 0 ? excelRound(saldo / cuotas, 2) : 0;
+
+  // El balloon se descuenta del saldo y se paga al final
+  let balloonUf = excelRound(precio * (balloonPctNum / 100), 2);
+  if (balloonUf > saldo) balloonUf = saldo; // no puede exceder el saldo
+  const saldoEnCuotas = excelRound(saldo - balloonUf, 2);
+  const cuotaUf = cuotas > 0 && precio > 0 ? excelRound(saldoEnCuotas / cuotas, 2) : 0;
 
   return {
     tipo,
     habitar,
     anioEntrega: habitar ? habitar.anioEntrega : "",
     plazoAnios: plazo,
+    precioBaseUf: precioBase,
+    descPct: descPctNum,
+    descUf,
+    hasDescuento: descPctNum > 0 && descUf > 0,
     precioUf: precio,
     piePct: piePctNum,
     pieUf,
     saldo,
     cuotas,
     cuotaUf,
+    balloonPct: balloonPctNum,
+    balloonUf,
+    hasBalloon: balloonPctNum > 0 && balloonUf > 0,
+    precioBaseClp: precioBase * uf,
+    descClp: descUf * uf,
     precioClp: precio * uf,
     pieClp: pieUf * uf,
     saldoClp: saldo * uf,
     cuotaClp: cuotaUf * uf,
+    balloonClp: balloonUf * uf,
     uf,
     precioM2: PRECIO_UF_M2,
     hasUf: uf > 0,
@@ -1457,6 +1492,15 @@ function renderShell() {
                 </div>
                 <p class="hint">Mínimo ${PIE_MIN}% · estándar ${PIE_STD}%</p>
               </div>
+              <div class="fields two">
+                <label>Descuento (%)
+                  <input name="descPct" type="number" min="0" max="${DESC_MAX}" step="0.1" placeholder="0" />
+                </label>
+                <label>Cuota final / Balloon (%)
+                  <input name="balloonPct" type="number" min="0" max="${BALLOON_MAX}" step="0.1" placeholder="0" />
+                </label>
+              </div>
+              <p class="hint">Opcionales. Descuento máx ${DESC_MAX}% · balloon máx ${BALLOON_MAX}%. Si hay balloon, la cuota inicial es mínimo ${PIE_MIN_BALLOON}%.</p>
             </div>
           </div>
         </form>
@@ -1582,9 +1626,23 @@ function renderSheet(state, totals) {
         <tbody>
           <tr>
             <td>Precio de venta${tipo ? ` <span class="soft">(${formatM2(tipo.superficie)} × ${PRECIO_UF_M2} UF)</span>` : ""}</td>
-            <td class="num">${hasPrecio ? formatUf(totals.precioUf) : "—"}</td>
-            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioClp) : "—"}</td>
+            <td class="num">${hasPrecio ? formatUf(totals.precioBaseUf) : "—"}</td>
+            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioBaseClp) : "—"}</td>
           </tr>
+          ${
+            totals.hasDescuento
+              ? `<tr>
+            <td>Descuento <span class="soft">(${formatPct(totals.descPct)})</span></td>
+            <td class="num">− ${formatUf(totals.descUf)}</td>
+            <td class="num">${totals.hasUf ? "− " + formatMoney(totals.descClp) : "—"}</td>
+          </tr>
+          <tr class="highlight">
+            <td>Precio con descuento</td>
+            <td class="num">${formatUf(totals.precioUf)}</td>
+            <td class="num">${totals.hasUf ? formatMoney(totals.precioClp) : "—"}</td>
+          </tr>`
+              : ""
+          }
           <tr>
             <td>Cuota inicial <span class="soft">(${formatPct(totals.piePct)})</span></td>
             <td class="num">${hasPrecio ? formatUf(totals.pieUf) : "—"}</td>
@@ -1611,14 +1669,30 @@ function renderSheet(state, totals) {
         </thead>
         <tbody>
           <tr class="highlight">
-            <td>Valor de cada cuota</td>
+            <td>Valor de cada cuota${totals.hasBalloon && totals.cuotas ? ` <span class="soft">(${totals.cuotas} cuotas)</span>` : ""}</td>
             <td class="num">${hasPrecio && totals.cuotas ? formatUf(totals.cuotaUf) : "—"}</td>
             <td class="num">${hasPrecio && totals.cuotas && totals.hasUf ? formatMoney(totals.cuotaClp) : "—"}</td>
           </tr>
+          ${
+            totals.hasBalloon
+              ? `<tr class="highlight">
+            <td>Cuota final (balloon) <span class="soft">(${formatPct(totals.balloonPct)})</span></td>
+            <td class="num">${formatUf(totals.balloonUf)}</td>
+            <td class="num">${totals.hasUf ? formatMoney(totals.balloonClp) : "—"}</td>
+          </tr>`
+              : ""
+          }
         </tbody>
       </table>
       <div class="grid-1" style="margin-top:10px">
-        ${kv("Cuotas fijas mensuales", totals.cuotas ? String(totals.cuotas) : "—")}
+        ${kv(
+          "Cuotas fijas mensuales",
+          totals.cuotas
+            ? totals.hasBalloon
+              ? `${totals.cuotas} + 1 cuota final`
+              : String(totals.cuotas)
+            : "—"
+        )}
       </div>
     </div>
 
@@ -1634,6 +1708,11 @@ function renderSheet(state, totals) {
         <li>La superficie indicada es aproximada y podrá ajustarse según los planos definitivos y la recepción municipal de la obra.</li>
         <li>El año de entrega es estimado y está sujeto al avance y recepción de la obra.</li>
         <li>La cuota inicial podrá pactarse en cuotas según las condiciones que se acuerden en el contrato.</li>
+        ${
+          totals.hasBalloon
+            ? `<li>El plan de pago considera una cuota final (balloon) de ${formatPct(totals.balloonPct)} del precio, pagadera al término del crédito; las cuotas mensuales se calculan sobre el saldo restante.</li>`
+            : ""
+        }
         <li>Los valores no incluyen gastos operacionales, notariales, de inscripción en el Conservador de Bienes Raíces ni impuestos que correspondan.</li>
       </ul>
     </div>
@@ -1674,7 +1753,7 @@ function readForm(form) {
   const data = new FormData(form);
   const state = {};
   for (const [key, value] of data.entries()) {
-    if (["uf", "piePct"].includes(key)) {
+    if (["uf", "piePct", "descPct", "balloonPct"].includes(key)) {
       state[key] = value === "" ? "" : Number(value);
     } else {
       state[key] = value;
@@ -1751,10 +1830,19 @@ function buildEmailBody(state, totals) {
     "RESUMEN DE LA COTIZACIÓN",
     `• Tipología: ${tipo.nombre} (${formatM2(tipo.superficie)}) — incluye ${tipo.estacionamientos} estacionamiento(s) y ${tipo.bodegas} bodega(s)`,
     `• Torre / Habitar: ${totals.habitar ? totals.habitar.nombre : "—"} · Entrega estimada: ${totals.anioEntrega || "—"}`,
-    `• Precio de venta: ${clp(formatUf(totals.precioUf), formatMoney(totals.precioClp))}`,
+    `• Precio de venta: ${clp(formatUf(totals.precioBaseUf), formatMoney(totals.precioBaseClp))}`,
+    ...(totals.hasDescuento
+      ? [
+          `• Descuento (${formatPct(totals.descPct)}): − ${clp(formatUf(totals.descUf), formatMoney(totals.descClp))}`,
+          `• Precio con descuento: ${clp(formatUf(totals.precioUf), formatMoney(totals.precioClp))}`,
+        ]
+      : []),
     `• Cuota inicial (${formatPct(totals.piePct)}): ${clp(formatUf(totals.pieUf), formatMoney(totals.pieClp))}`,
     `• Saldo a financiar: ${clp(formatUf(totals.saldo), formatMoney(totals.saldoClp))}`,
     `• Plan de pago: ${totals.cuotas} cuotas mensuales de ${clp(formatUf(totals.cuotaUf), formatMoney(totals.cuotaClp))}`,
+    ...(totals.hasBalloon
+      ? [`• Cuota final (balloon) (${formatPct(totals.balloonPct)}): ${clp(formatUf(totals.balloonUf), formatMoney(totals.balloonClp))}`]
+      : []),
     "",
     totals.hasUf
       ? `Valores calculados con 1 UF = ${formatMoney(totals.uf)}. Los montos en pesos son referenciales.`
@@ -2016,15 +2104,44 @@ function boot() {
     renderSheet(state, calc(state));
   };
 
-  // La cuota inicial se puede escribir libremente; se ajusta al rango válido
-  // solo al salir del campo (blur) o presionar Enter, no en cada tecla.
+  const balloonEl = form.elements.namedItem("balloonPct");
+  const descEl = form.elements.namedItem("descPct");
   const pieEl = form.elements.namedItem("piePct");
+
+  // Cuota inicial mínima efectiva (15% si hay balloon, si no 10%)
+  const pieMinEfectivo = () => ((Number(balloonEl.value) || 0) > 0 ? PIE_MIN_BALLOON : PIE_MIN);
+
+  // Se escribe libre; se ajusta al rango sólo al salir del campo (blur/Enter).
   pieEl.addEventListener("change", () => {
-    let v = pieEl.value === "" ? PIE_STD : Number(pieEl.value);
-    if (!Number.isFinite(v)) v = PIE_STD;
-    if (v < PIE_MIN) v = PIE_MIN;
+    const min = pieMinEfectivo();
+    let v = pieEl.value === "" ? Math.max(PIE_STD, min) : Number(pieEl.value);
+    if (!Number.isFinite(v)) v = Math.max(PIE_STD, min);
+    if (v < min) v = min;
     if (v > 100) v = 100;
     pieEl.value = String(v);
+    refresh();
+  });
+
+  descEl.addEventListener("change", () => {
+    if (descEl.value === "") return refresh();
+    let v = Number(descEl.value);
+    if (!Number.isFinite(v) || v < 0) v = 0;
+    if (v > DESC_MAX) v = DESC_MAX;
+    descEl.value = v ? String(v) : "";
+    refresh();
+  });
+
+  balloonEl.addEventListener("change", () => {
+    if (balloonEl.value !== "") {
+      let v = Number(balloonEl.value);
+      if (!Number.isFinite(v) || v < 0) v = 0;
+      if (v > BALLOON_MAX) v = BALLOON_MAX;
+      balloonEl.value = v ? String(v) : "";
+    }
+    // Si hay balloon, la cuota inicial debe ser mínimo PIE_MIN_BALLOON
+    if ((Number(balloonEl.value) || 0) > 0 && (Number(pieEl.value) || 0) < PIE_MIN_BALLOON) {
+      pieEl.value = String(PIE_MIN_BALLOON);
+    }
     refresh();
   });
 
