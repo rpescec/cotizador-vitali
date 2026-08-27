@@ -920,91 +920,87 @@ input[readonly] {
     print-color-adjust: exact;
   }
 
-  /* Compactar para caber en una sola página */
+  /* Compactar para caber en una sola página (incluye descuento/reserva/balloon) */
   .sheet-head {
-    padding-bottom: 8px;
-    margin-bottom: 10px;
+    padding-bottom: 6px;
+    margin-bottom: 7px;
   }
 
   .sheet-logo {
-    max-height: 42px;
-  }
-
-  .sheet-brand {
-    font-size: 1.5rem;
+    max-height: 38px;
   }
 
   .sheet-meta .doc-title {
-    font-size: 1.35rem;
+    font-size: 1.3rem;
     margin-bottom: 4px;
   }
 
   .sheet-meta .value {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
   }
 
   .block {
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     break-inside: avoid;
   }
 
   .block h3 {
-    padding: 4px 8px;
-    margin-bottom: 6px;
-    font-size: 0.7rem;
+    padding: 3px 7px;
+    margin-bottom: 4px;
+    font-size: 0.66rem;
   }
 
   .grid-2 {
-    gap: 1px 22px;
+    gap: 0 20px;
   }
 
   .kv {
-    padding: 2px 8px;
+    padding: 1.5px 8px;
   }
 
   .kv .k {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
   }
 
   .kv .v {
-    font-size: 0.78rem;
+    font-size: 0.74rem;
   }
 
   .table {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
   }
 
   .table th,
   .table td {
-    padding: 4px 8px;
+    padding: 3px 7px;
   }
 
   .table th {
-    font-size: 0.68rem;
+    font-size: 0.62rem;
   }
 
   .uf-note {
-    font-size: 0.76rem;
-    margin-bottom: 6px;
+    font-size: 0.72rem;
+    margin-bottom: 4px;
   }
 
   .terms {
-    font-size: 0.66rem;
-    line-height: 1.28;
+    font-size: 0.64rem;
+    line-height: 1.2;
     column-count: 2;
-    column-gap: 20px;
+    column-gap: 18px;
     padding-left: 16px;
   }
 
   .terms li {
-    margin-bottom: 2px;
+    margin-bottom: 1px;
     break-inside: avoid;
   }
 
   .sheet-foot {
-    margin-top: 10px;
-    padding-top: 8px;
-    font-size: 0.72rem;
+    margin-top: 6px;
+    padding-top: 6px;
+    font-size: 0.7rem;
   }
 }
 
@@ -1019,7 +1015,7 @@ const PIE_MIN = 10;
 const PIE_STD = 15;
 const DESC_MAX = 2; // tope de descuento (%)
 const BALLOON_MAX = 35; // tope de cuota final / balloon (%)
-const PIE_MIN_BALLOON = 15; // cuota inicial mínima cuando hay balloon (%)
+const RESERVA_MIN = 500000; // reserva mínima en pesos (cuando se usa)
 
 /** Correo del CRM (Kommo) que siempre va en copia (CC) al enviar la cotización. */
 const CRM_EMAIL = "vitalisuites@mail.kommo.com";
@@ -1287,11 +1283,9 @@ function calc(state) {
   if (balloonPctNum < 0) balloonPctNum = 0;
   if (balloonPctNum > BALLOON_MAX) balloonPctNum = BALLOON_MAX;
 
-  // Cuota inicial: mínimo PIE_MIN, o PIE_MIN_BALLOON si hay balloon
-  const pieMin = balloonPctNum > 0 ? PIE_MIN_BALLOON : PIE_MIN;
   let piePctNum = Number(state.piePct);
   if (!Number.isFinite(piePctNum)) piePctNum = PIE_STD;
-  if (piePctNum < pieMin) piePctNum = pieMin;
+  if (piePctNum < PIE_MIN) piePctNum = PIE_MIN;
   if (piePctNum > 100) piePctNum = 100;
   const piePct = piePctNum / 100;
   const uf = Number(state.uf) || 0;
@@ -1517,9 +1511,9 @@ function renderShell() {
                 </label>
               </div>
               <label>Reserva ($)
-                <input name="reservaClp" type="number" min="0" step="1000" placeholder="0" />
+                <input name="reservaClp" type="number" min="0" step="10000" placeholder="0" />
               </label>
-              <p class="hint">Opcionales. Descuento máx ${DESC_MAX}% · balloon máx ${BALLOON_MAX}%. Si hay balloon, la cuota inicial es mínimo ${PIE_MIN_BALLOON}%. La reserva se abona a la cuota inicial.</p>
+              <p class="hint">Opcionales. Descuento máx ${DESC_MAX}% · balloon máx ${BALLOON_MAX}%. Reserva mínima ${formatMoney(RESERVA_MIN)}; se abona a la cuota inicial.</p>
             </div>
           </div>
         </form>
@@ -1938,20 +1932,22 @@ function enviarPorCorreo(form, state, totals) {
 /** CSS compacto (igual que la impresión) aplicado solo mientras se genera el PDF.
  *  Se conserva un padding lateral para que nada quede pegado al borde (evita recortes). */
 const PDF_COMPACT_CSS = `
-#sheet{padding:6px 18px!important}
-#sheet .sheet-logo{max-height:42px!important}
-#sheet .sheet-head{padding-bottom:8px!important;margin-bottom:10px!important}
-#sheet .block{margin-bottom:8px!important}
-#sheet .block h3{padding:4px 8px!important;margin-bottom:6px!important;font-size:.7rem!important}
-#sheet .grid-2{gap:1px 22px!important}
-#sheet .kv{padding:3px 8px!important}
-#sheet .kv .k{font-size:.78rem!important}#sheet .kv .v{font-size:.8rem!important}
-#sheet .table{font-size:.84rem!important}
-#sheet .table th,#sheet .table td{padding:5px 8px!important}
-#sheet .uf-note{font-size:.78rem!important;margin-bottom:6px!important}
-#sheet .terms{font-size:.68rem!important;line-height:1.3!important;column-count:2!important;column-gap:20px!important}
-#sheet .terms li{margin-bottom:2px!important;break-inside:avoid!important}
-#sheet .sheet-foot{margin-top:10px!important;padding-top:8px!important;font-size:.74rem!important}
+#sheet{padding:5px 16px!important}
+#sheet .sheet-logo{max-height:38px!important}
+#sheet .sheet-head{padding-bottom:6px!important;margin-bottom:7px!important}
+#sheet .doc-title{font-size:1.3rem!important}
+#sheet .block{margin-bottom:5px!important}
+#sheet .block h3{padding:3px 7px!important;margin-bottom:4px!important;font-size:.66rem!important}
+#sheet .grid-2{gap:0 20px!important}
+#sheet .kv{padding:1.5px 8px!important}
+#sheet .kv .k{font-size:.74rem!important}#sheet .kv .v{font-size:.74rem!important}
+#sheet .table{font-size:.8rem!important}
+#sheet .table th,#sheet .table td{padding:3px 7px!important}
+#sheet .table th{font-size:.62rem!important}
+#sheet .uf-note{font-size:.72rem!important;margin-bottom:4px!important}
+#sheet .terms{font-size:.64rem!important;line-height:1.2!important;column-count:2!important;column-gap:18px!important}
+#sheet .terms li{margin-bottom:1px!important;break-inside:avoid!important}
+#sheet .sheet-foot{margin-top:6px!important;padding-top:6px!important;font-size:.7rem!important}
 `;
 
 /** Resolución/calidad del PDF. El PDF se envía como archivo adjunto (multipart),
@@ -2151,16 +2147,13 @@ function boot() {
   const balloonEl = form.elements.namedItem("balloonPct");
   const descEl = form.elements.namedItem("descPct");
   const pieEl = form.elements.namedItem("piePct");
+  const reservaEl = form.elements.namedItem("reservaClp");
 
-  // Cuota inicial mínima efectiva (15% si hay balloon, si no 10%)
-  const pieMinEfectivo = () => ((Number(balloonEl.value) || 0) > 0 ? PIE_MIN_BALLOON : PIE_MIN);
-
-  // Se escribe libre; se ajusta al rango sólo al salir del campo (blur/Enter).
+  // La cuota inicial se escribe libre; se ajusta al rango [10, 100] al salir del campo.
   pieEl.addEventListener("change", () => {
-    const min = pieMinEfectivo();
-    let v = pieEl.value === "" ? Math.max(PIE_STD, min) : Number(pieEl.value);
-    if (!Number.isFinite(v)) v = Math.max(PIE_STD, min);
-    if (v < min) v = min;
+    let v = pieEl.value === "" ? PIE_STD : Number(pieEl.value);
+    if (!Number.isFinite(v)) v = PIE_STD;
+    if (v < PIE_MIN) v = PIE_MIN;
     if (v > 100) v = 100;
     pieEl.value = String(v);
     refresh();
@@ -2176,15 +2169,22 @@ function boot() {
   });
 
   balloonEl.addEventListener("change", () => {
-    if (balloonEl.value !== "") {
-      let v = Number(balloonEl.value);
-      if (!Number.isFinite(v) || v < 0) v = 0;
-      if (v > BALLOON_MAX) v = BALLOON_MAX;
-      balloonEl.value = v ? String(v) : "";
-    }
-    // Si hay balloon, la cuota inicial debe ser mínimo PIE_MIN_BALLOON
-    if ((Number(balloonEl.value) || 0) > 0 && (Number(pieEl.value) || 0) < PIE_MIN_BALLOON) {
-      pieEl.value = String(PIE_MIN_BALLOON);
+    if (balloonEl.value === "") return refresh();
+    let v = Number(balloonEl.value);
+    if (!Number.isFinite(v) || v < 0) v = 0;
+    if (v > BALLOON_MAX) v = BALLOON_MAX;
+    balloonEl.value = v ? String(v) : "";
+    refresh();
+  });
+
+  // Reserva: si se usa, mínimo RESERVA_MIN pesos.
+  reservaEl.addEventListener("change", () => {
+    if (reservaEl.value === "") return refresh();
+    let v = Number(reservaEl.value);
+    if (!Number.isFinite(v) || v <= 0) {
+      reservaEl.value = "";
+    } else if (v < RESERVA_MIN) {
+      reservaEl.value = String(RESERVA_MIN);
     }
     refresh();
   });
