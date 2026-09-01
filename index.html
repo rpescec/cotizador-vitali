@@ -872,7 +872,7 @@ input[readonly] {
   }
 }
 
-/* ===== Modal: Planes por capacidad ===== */
+/* ===== Modal: Planes por capacidad (compacto, cabe en 1 pantalla) ===== */
 .planes-modal {
   position: fixed;
   inset: 0;
@@ -880,9 +880,9 @@ input[readonly] {
   background: rgba(12, 35, 64, 0.55);
   backdrop-filter: blur(3px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 28px 16px;
+  padding: 12px;
   overflow-y: auto;
 }
 
@@ -892,11 +892,13 @@ input[readonly] {
 
 .planes-box {
   background: var(--white);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: var(--shadow);
-  max-width: 760px;
+  max-width: 780px;
   width: 100%;
-  padding: 22px 24px 20px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 14px 18px 12px;
 }
 
 .planes-head {
@@ -904,20 +906,20 @@ input[readonly] {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .planes-title {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: var(--navy);
 }
 
 .planes-sub {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   color: var(--muted);
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .planes-head-actions {
@@ -929,17 +931,17 @@ input[readonly] {
 .planes-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 16px;
-  margin-bottom: 14px;
+  gap: 6px 14px;
+  margin-bottom: 8px;
 }
 
 .planes-controls label {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--muted);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
 }
 
 .planes-controls b {
@@ -948,13 +950,13 @@ input[readonly] {
 
 .planes-controls select {
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--ink);
   background: var(--input);
   border: 1px solid #c9d6e4;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 6px 8px;
 }
 
 .planes-controls input[type="range"],
@@ -962,13 +964,14 @@ input[readonly] {
   width: 100%;
   accent-color: var(--gold);
   cursor: pointer;
+  margin: 0;
 }
 
 .planes-cap {
   background: var(--input);
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 14px;
+  border-radius: 10px;
+  padding: 8px 14px 10px;
+  margin-bottom: 8px;
 }
 
 .planes-caprow {
@@ -978,40 +981,40 @@ input[readonly] {
 }
 
 .planes-cap label {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 600;
   color: var(--muted);
 }
 
 .planes-capval {
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: var(--navy);
 }
 
 .planes-summary {
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.35;
   background: rgba(201, 162, 39, 0.12);
   border: 1px solid rgba(201, 162, 39, 0.35);
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
+  border-radius: 9px;
+  padding: 7px 10px;
+  margin-bottom: 7px;
 }
 
 .planes-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
-  font-size: 0.72rem;
+  gap: 4px 14px;
+  font-size: 0.66rem;
   color: var(--muted);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .planes-legend i {
   display: inline-block;
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   border-radius: 3px;
   margin-right: 4px;
   vertical-align: -1px;
@@ -1031,42 +1034,42 @@ input[readonly] {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .planes-row {
   display: grid;
-  grid-template-columns: 122px 1fr 120px;
+  grid-template-columns: 108px 1fr 86px auto;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   position: relative;
   z-index: 1;
 }
 
 .planes-rlabel {
-  font-size: 0.77rem;
+  font-size: 0.68rem;
   text-align: right;
-  line-height: 1.12;
+  line-height: 1.1;
   color: var(--ink);
 }
 
 .planes-rlabel small {
   display: block;
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: 0.58rem;
 }
 
 .planes-track {
   position: relative;
-  height: 21px;
+  height: 16px;
   background: var(--input);
-  border-radius: 6px;
+  border-radius: 5px;
   overflow: hidden;
 }
 
 .planes-bar {
   height: 100%;
-  border-radius: 6px;
+  border-radius: 5px;
   transition: width 0.18s ease;
 }
 
@@ -1081,10 +1084,11 @@ input[readonly] {
 }
 
 .planes-rval {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-align: right;
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .planes-rval small {
@@ -1096,23 +1100,41 @@ input[readonly] {
   color: var(--muted);
 }
 
+.planes-elegir {
+  appearance: none;
+  border: 1px solid var(--navy);
+  background: var(--white);
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.planes-elegir:hover {
+  background: var(--navy);
+  color: #fff;
+}
+
 .planes-capline {
   position: absolute;
-  top: -4px;
-  bottom: -4px;
+  top: -3px;
+  bottom: -3px;
   width: 0;
   border-left: 2px dashed var(--navy);
-  opacity: 0.55;
+  opacity: 0.5;
   z-index: 2;
   pointer-events: none;
 }
 
 .planes-capline span {
   position: absolute;
-  bottom: -15px;
+  bottom: -14px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   color: var(--navy);
   white-space: nowrap;
@@ -1121,10 +1143,10 @@ input[readonly] {
 }
 
 .planes-foot {
-  font-size: 0.73rem;
+  font-size: 0.64rem;
   color: var(--muted);
-  margin: 12px 0 0;
-  line-height: 1.4;
+  margin: 8px 0 0;
+  line-height: 1.35;
 }
 
 @media (max-width: 600px) {
@@ -1132,11 +1154,8 @@ input[readonly] {
     grid-template-columns: 1fr;
   }
   .planes-row {
-    grid-template-columns: 96px 1fr 92px;
-    gap: 7px;
-  }
-  .planes-box {
-    padding: 18px 16px;
+    grid-template-columns: 84px 1fr 76px auto;
+    gap: 6px;
   }
 }
 
@@ -2401,8 +2420,9 @@ async function enviarAutomatico(form, state, totals, setStatus) {
 /** Moneda del simulador de planes: "clp" o "uf" */
 let planesMoneda = "clp";
 
-/** Abre el modal "Planes por capacidad" usando los datos de la cotización actual */
-function abrirPlanes(form) {
+/** Abre el modal "Planes por capacidad" usando los datos de la cotización actual.
+ *  aplicar(): callback para refrescar la cotización tras "Elegir" un plan. */
+function abrirPlanes(form, aplicar) {
   const modal = document.querySelector("#planes-modal");
   const st = readForm(form);
   const tipoId = st.tipologiaId || Object.keys(TIPOLOGIAS)[0];
@@ -2500,9 +2520,22 @@ function abrirPlanes(form) {
             <div class="planes-rlabel">Habitar ${d.n}<small>entrega ${d.e} · ${d.c} cuotas</small></div>
             <div class="planes-track"><div class="planes-bar ${stt}" style="width:${Math.max(4, (d.uf / maxUf) * 100)}%"></div></div>
             <div class="planes-rval ${cabe ? "" : "no"}">${fmtMon(d.uf)} <small>/mes</small></div>
+            <button type="button" class="planes-elegir" data-hab="${d.n}" title="Usar este plan en la cotización">Elegir</button>
           </div>`;
         })
         .join("") + `<div class="planes-capline" id="pl-capline"><span>Capacidad</span></div>`;
+
+    chart.querySelectorAll(".planes-elegir").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        form.elements.namedItem("tipologiaId").value = q("#pl-tipo").value;
+        form.elements.namedItem("habitarId").value = btn.dataset.hab;
+        form.elements.namedItem("piePct").value = q("#pl-pie").value;
+        const b = q("#pl-bal").value;
+        form.elements.namedItem("balloonPct").value = Number(b) > 0 ? b : "";
+        if (typeof aplicar === "function") aplicar();
+        modal.hidden = true;
+      });
+    });
 
     const track = chart.querySelector(".planes-track");
     const capline = chart.querySelector("#pl-capline");
@@ -2667,7 +2700,7 @@ function boot() {
       alert("Actualiza el valor UF antes de ver los planes por capacidad.");
       return;
     }
-    abrirPlanes(form);
+    abrirPlanes(form, refresh);
   });
 
   document.querySelector("#btn-uf").addEventListener("click", () => applyUf());
