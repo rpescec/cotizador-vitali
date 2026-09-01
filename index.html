@@ -872,6 +872,274 @@ input[readonly] {
   }
 }
 
+/* ===== Modal: Planes por capacidad ===== */
+.planes-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(12, 35, 64, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 16px;
+  overflow-y: auto;
+}
+
+.planes-modal[hidden] {
+  display: none;
+}
+
+.planes-box {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  max-width: 760px;
+  width: 100%;
+  padding: 22px 24px 20px;
+}
+
+.planes-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.planes-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.planes-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.planes-head-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.planes-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.planes-controls label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.planes-controls b {
+  color: var(--navy);
+}
+
+.planes-controls select {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--input);
+  border: 1px solid #c9d6e4;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.planes-controls input[type="range"],
+.planes-cap input[type="range"] {
+  width: 100%;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.planes-cap {
+  background: var(--input);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.planes-caprow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.planes-cap label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.planes-capval {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.planes-summary {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  background: rgba(201, 162, 39, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.planes-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.planes-legend i {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+
+.pl-sw.ok {
+  background: var(--gold);
+}
+.pl-sw.late {
+  background: var(--gold-soft);
+}
+.pl-sw.no {
+  background: #c7d0da;
+}
+
+.planes-chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.planes-row {
+  display: grid;
+  grid-template-columns: 122px 1fr 120px;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.planes-rlabel {
+  font-size: 0.77rem;
+  text-align: right;
+  line-height: 1.12;
+  color: var(--ink);
+}
+
+.planes-rlabel small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.planes-track {
+  position: relative;
+  height: 21px;
+  background: var(--input);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.planes-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.18s ease;
+}
+
+.planes-bar.ok {
+  background: var(--gold);
+}
+.planes-bar.late {
+  background: var(--gold-soft);
+}
+.planes-bar.no {
+  background: #c7d0da;
+}
+
+.planes-rval {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+  color: var(--ink);
+}
+
+.planes-rval small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.planes-rval.no {
+  color: var(--muted);
+}
+
+.planes-capline {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 0;
+  border-left: 2px dashed var(--navy);
+  opacity: 0.55;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.planes-capline span {
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--navy);
+  white-space: nowrap;
+  background: var(--white);
+  padding: 0 3px;
+}
+
+.planes-foot {
+  font-size: 0.73rem;
+  color: var(--muted);
+  margin: 12px 0 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .planes-controls {
+    grid-template-columns: 1fr;
+  }
+  .planes-row {
+    grid-template-columns: 96px 1fr 92px;
+    gap: 7px;
+  }
+  .planes-box {
+    padding: 18px 16px;
+  }
+}
+
 @media print {
   @page {
     size: A4;
@@ -890,7 +1158,8 @@ input[readonly] {
   .topbar,
   .panel,
   .live-badge,
-  .bottombar {
+  .bottombar,
+  .planes-modal {
     display: none !important;
   }
 
@@ -1408,6 +1677,7 @@ function renderShell() {
         <p>Cotizador online · Chicureo</p>
       </div>
       <div class="actions">
+        <button type="button" class="btn btn-ghost" id="btn-planes">📊 Planes por capacidad</button>
         <button type="button" class="btn btn-ghost" id="btn-reset">Limpiar</button>
         <button type="button" class="btn btn-primary" id="btn-print">Imprimir / PDF</button>
         <button type="button" class="btn btn-gold" id="btn-email">Enviar por correo</button>
@@ -1532,6 +1802,8 @@ function renderShell() {
         <button type="button" class="btn btn-gold btn-print-lg" id="btn-email-bottom">Enviar por correo</button>
       </div>
     </div>
+
+    <div class="planes-modal" id="planes-modal" hidden></div>
   `;
 }
 
@@ -2126,6 +2398,148 @@ async function enviarAutomatico(form, state, totals, setStatus) {
   }
 }
 
+/** Moneda del simulador de planes: "clp" o "uf" */
+let planesMoneda = "clp";
+
+/** Abre el modal "Planes por capacidad" usando los datos de la cotización actual */
+function abrirPlanes(form) {
+  const modal = document.querySelector("#planes-modal");
+  const st = readForm(form);
+  const tipoId = st.tipologiaId || Object.keys(TIPOLOGIAS)[0];
+  const pieInit = Math.min(40, Math.max(10, Math.round(Number(st.piePct) || PIE_STD)));
+  const balInit = Math.min(BALLOON_MAX, Math.max(0, Math.round(Number(st.balloonPct) || 0)));
+  const uf = Number(st.uf) || 0;
+
+  const tiposOpts = Object.values(TIPOLOGIAS)
+    .map((t) => `<option value="${t.id}" ${t.id === tipoId ? "selected" : ""}>${t.nombre} · ${formatM2(t.superficie)}</option>`)
+    .join("");
+  const anios = [...new Set(Object.values(HABITARES).map((h) => h.anioEntrega))].sort();
+  const aniosOpts =
+    `<option value="9999">Cualquiera</option>` +
+    anios.map((y) => `<option value="${y}">Hasta ${y}</option>`).join("");
+
+  modal.innerHTML = `
+    <div class="planes-box">
+      <div class="planes-head">
+        <div>
+          <div class="planes-title">Planes de pago según capacidad</div>
+          <div class="planes-sub" id="pl-sub"></div>
+        </div>
+        <div class="planes-head-actions">
+          <button type="button" class="btn btn-ghost btn-small" id="pl-moneda"></button>
+          <button type="button" class="btn btn-ghost btn-small" id="pl-close">Cerrar ✕</button>
+        </div>
+      </div>
+      <div class="planes-controls">
+        <label>Tipo de unidad<select id="pl-tipo">${tiposOpts}</select></label>
+        <label>Año que lo necesita<select id="pl-anio">${aniosOpts}</select></label>
+        <label>Pago inicial: <b id="pl-pieval"></b><input type="range" id="pl-pie" min="10" max="40" step="1" value="${pieInit}" /></label>
+        <label>Cuota final / Balloon: <b id="pl-balval"></b><input type="range" id="pl-bal" min="0" max="${BALLOON_MAX}" step="1" value="${balInit}" /></label>
+      </div>
+      <div class="planes-cap">
+        <div class="planes-caprow"><label>Capacidad de pago mensual</label><div class="planes-capval" id="pl-capval"></div></div>
+        <input type="range" id="pl-cap" min="300000" max="3000000" step="50000" value="1000000" />
+      </div>
+      <div class="planes-summary" id="pl-summary"></div>
+      <div class="planes-legend">
+        <span><i class="pl-sw ok"></i> Ideal (cabe y llega a tiempo)</span>
+        <span><i class="pl-sw late"></i> Cabe, entrega posterior</span>
+        <span><i class="pl-sw no"></i> Sobre la capacidad</span>
+      </div>
+      <div class="planes-chart" id="pl-chart"></div>
+      <p class="planes-foot" id="pl-foot"></p>
+    </div>
+  `;
+
+  const q = (sel) => modal.querySelector(sel);
+  const fmtMon = (ufVal) =>
+    planesMoneda === "uf" ? formatUf(ufVal) : uf > 0 ? formatMoney(ufVal * uf) : "—";
+
+  function render() {
+    const tipo = TIPOLOGIAS[q("#pl-tipo").value];
+    const pie = Number(q("#pl-pie").value);
+    const bal = Number(q("#pl-bal").value);
+    const anio = Number(q("#pl-anio").value);
+    const capClp = Number(q("#pl-cap").value);
+    const capUf = uf > 0 ? capClp / uf : 0;
+    const precioUf = tipo.superficie * PRECIO_UF_M2;
+    const pieUf = precioUf * (pie / 100);
+    const saldo = precioUf * (1 - pie / 100);
+    const balUf = precioUf * (bal / 100);
+    const base = Math.max(0, saldo - balUf);
+
+    q("#pl-pieval").textContent = `${pie}% · ${fmtMon(pieUf)}`;
+    q("#pl-balval").textContent = `${bal}%${bal ? ` · ${fmtMon(balUf)}` : ""}`;
+    q("#pl-capval").textContent = planesMoneda === "uf" ? formatUf(capUf) : formatMoney(capClp);
+    q("#pl-moneda").textContent = planesMoneda === "uf" ? "Ver en $" : "Ver en UF";
+    q("#pl-sub").textContent = `${tipo.nombre} · ${formatM2(tipo.superficie)} · ${fmtMon(precioUf)} · pie ${fmtMon(pieUf)}${bal ? ` · balloon ${fmtMon(balUf)}` : ""}`;
+
+    const data = Object.values(HABITARES).map((h) => ({
+      n: h.id,
+      e: h.anioEntrega,
+      c: h.cuotas,
+      uf: base / h.cuotas,
+    }));
+    data.sort((a, b) => b.uf - a.uf);
+    const maxUf = data[0].uf || 1;
+
+    let ideal = 0;
+    let mejor = null;
+    const chart = q("#pl-chart");
+    chart.innerHTML =
+      data
+        .map((d) => {
+          const cabe = d.uf <= capUf;
+          const aTiempo = d.e <= anio;
+          const stt = !cabe ? "no" : aTiempo ? "ok" : "late";
+          if (stt === "ok") {
+            ideal++;
+            if (!mejor || d.uf > mejor.uf) mejor = d;
+          }
+          return `<div class="planes-row">
+            <div class="planes-rlabel">Habitar ${d.n}<small>entrega ${d.e} · ${d.c} cuotas</small></div>
+            <div class="planes-track"><div class="planes-bar ${stt}" style="width:${Math.max(4, (d.uf / maxUf) * 100)}%"></div></div>
+            <div class="planes-rval ${cabe ? "" : "no"}">${fmtMon(d.uf)} <small>/mes</small></div>
+          </div>`;
+        })
+        .join("") + `<div class="planes-capline" id="pl-capline"><span>Capacidad</span></div>`;
+
+    const track = chart.querySelector(".planes-track");
+    const capline = chart.querySelector("#pl-capline");
+    if (track && capline) {
+      const cr = chart.getBoundingClientRect();
+      const tr = track.getBoundingClientRect();
+      capline.style.left = tr.left - cr.left + Math.min(1, capUf / maxUf) * tr.width + "px";
+      capline.style.display = capUf <= maxUf ? "block" : "none";
+    }
+
+    const capTxt = planesMoneda === "uf" ? formatUf(capUf) : formatMoney(capClp);
+    const sum = q("#pl-summary");
+    if (mejor) {
+      sum.innerHTML = `Con <b>${capTxt}/mes</b>${anio < 9999 ? ` y entrega hasta <b>${anio}</b>` : ""}, la mejor opción es <b>Habitar ${mejor.n}</b> (entrega ${mejor.e}): ${mejor.c} cuotas de <b>${fmtMon(mejor.uf)}/mes</b>.`;
+    } else {
+      const barato = data[data.length - 1];
+      sum.innerHTML = `Con <b>${capTxt}/mes</b>${anio < 9999 ? ` y entrega hasta <b>${anio}</b>` : ""} no hay un plan ideal. La cuota más baja es <b>${fmtMon(barato.uf)}/mes</b> (Habitar ${barato.n}, entrega ${barato.e}). Sube el pie, agrega balloon o amplía el año.`;
+    }
+    q("#pl-foot").textContent = `Valores referenciales${uf > 0 ? ` (1 UF = ${formatMoney(uf)})` : ""}. A mayor plazo, menor cuota pero entrega más lejana. El balloon baja la cuota mensual y se paga al final.`;
+  }
+
+  modal
+    .querySelectorAll("#pl-tipo,#pl-anio,#pl-pie,#pl-bal,#pl-cap")
+    .forEach((el) => el.addEventListener("input", render));
+  q("#pl-moneda").addEventListener("click", () => {
+    planesMoneda = planesMoneda === "uf" ? "clp" : "uf";
+    render();
+  });
+  q("#pl-close").addEventListener("click", () => (modal.hidden = true));
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) modal.hidden = true;
+  });
+
+  modal.hidden = false;
+  render();
+}
+
 function boot() {
   renderShell();
   const form = document.querySelector("#form");
@@ -2247,6 +2661,14 @@ function boot() {
     refresh();
     window.print();
   };
+
+  document.querySelector("#btn-planes").addEventListener("click", () => {
+    if (!(Number(form.elements.namedItem("uf").value) > 0)) {
+      alert("Actualiza el valor UF antes de ver los planes por capacidad.");
+      return;
+    }
+    abrirPlanes(form);
+  });
 
   document.querySelector("#btn-uf").addEventListener("click", () => applyUf());
   document.querySelector("#btn-print").addEventListener("click", imprimir);
