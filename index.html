@@ -1048,6 +1048,46 @@ input[readonly] {
   padding: 6px 9px;
 }
 
+.planes-promo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: rgba(201, 162, 39, 0.1);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 10px;
+}
+
+.planes-promo-lbl {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.pl-chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pl-chk input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.pl-chk b {
+  color: var(--navy);
+}
+
 .planes-cap {
   background: var(--input);
   border-radius: 10px;
@@ -2614,6 +2654,9 @@ function abrirPlanes(form, aplicar) {
   let piePct = Math.min(100, Math.max(10, Number(st.piePct) || PIE_STD));
   let balPct = Math.min(BALLOON_MAX, Math.max(0, Number(st.balloonPct) || 0));
   let capClp = 1000000;
+  let optEstac = !!st.optEstac;
+  let optBodega = !!st.optBodega;
+  let optEquip = !!st.optEquip;
 
   modal.innerHTML = `
     <div class="planes-box">
@@ -2636,6 +2679,12 @@ function abrirPlanes(form, aplicar) {
         <label>Cuota final / Balloon <span class="pl-pct" id="pl-bal-pct"></span>
           <div class="pl-inline"><input type="range" id="pl-bal" min="0" max="${BALLOON_MAX}" step="1" /><input type="text" inputmode="numeric" class="pl-amt" id="pl-bal-amt" /></div>
         </label>
+      </div>
+      <div class="planes-promo">
+        <span class="planes-promo-lbl">Promo preventa (descuenta del precio):</span>
+        <label class="pl-chk"><input type="checkbox" id="pl-estac" /> Estac. <b id="pl-estac-v"></b></label>
+        <label class="pl-chk"><input type="checkbox" id="pl-bodega" /> Bodega <b id="pl-bodega-v"></b></label>
+        <label class="pl-chk"><input type="checkbox" id="pl-equip" /> Equip. <b id="pl-equip-v"></b></label>
       </div>
       <div class="planes-cap">
         <div class="planes-caprow"><label for="pl-cap-amt">Capacidad de pago mensual</label><input type="text" inputmode="numeric" class="pl-amt pl-amt-cap" id="pl-cap-amt" /></div>
@@ -2685,10 +2734,21 @@ function abrirPlanes(form, aplicar) {
     }
   };
 
+  // Precio efectivo de una tipología considerando extras y la promo de preventa
+  const calcPrecio = (tipo) => {
+    const estacUf = tipo.estacionamientos * OPT_ESTAC_UF;
+    const bodegaUf = tipo.bodegas * OPT_BODEGA_UF;
+    const equipUf = OPT_EQUIP_UF;
+    const promoUf = (optEstac ? estacUf : 0) + (optBodega ? bodegaUf : 0) + (optEquip ? equipUf : 0);
+    const precioLista = tipo.superficie * PRECIO_UF_M2 + estacUf + bodegaUf + equipUf;
+    return { estacUf, bodegaUf, equipUf, promoUf, precioLista, precio: precioLista - promoUf };
+  };
+
   function render() {
     const tipo = TIPOLOGIAS[q("#pl-tipo").value];
     const anio = Number(q("#pl-anio").value);
-    const precioUf = tipo.superficie * PRECIO_UF_M2;
+    const P = calcPrecio(tipo);
+    const precioUf = P.precio;
     const pieUf = precioUf * (piePct / 100);
     const saldo = precioUf * (1 - piePct / 100);
     const balUf = precioUf * (balPct / 100);
@@ -2698,7 +2758,15 @@ function abrirPlanes(form, aplicar) {
     q("#pl-pie-pct").textContent = pctTxt(piePct);
     q("#pl-bal-pct").textContent = pctTxt(balPct);
     q("#pl-moneda").textContent = planesMoneda === "uf" ? "Ver en $" : "Ver en UF";
-    q("#pl-sub").textContent = `${tipo.nombre} · ${formatM2(tipo.superficie)} · ${fmtMon(precioUf)} · pie ${fmtMon(pieUf)}${balPct ? ` · balloon ${fmtMon(balUf)}` : ""}`;
+    q("#pl-sub").textContent = `${tipo.nombre} · ${formatM2(tipo.superficie)} · ${fmtMon(precioUf)}${P.promoUf > 0 ? ` (promo −${fmtMon(P.promoUf)})` : ""} · pie ${fmtMon(pieUf)}${balPct ? ` · balloon ${fmtMon(balUf)}` : ""}`;
+
+    // Casillas de la promo y sus valores (× cantidad de la tipología)
+    if (!foco(q("#pl-estac"))) q("#pl-estac").checked = optEstac;
+    if (!foco(q("#pl-bodega"))) q("#pl-bodega").checked = optBodega;
+    if (!foco(q("#pl-equip"))) q("#pl-equip").checked = optEquip;
+    q("#pl-estac-v").textContent = fmtMon(P.estacUf);
+    q("#pl-bodega-v").textContent = fmtMon(P.bodegaUf);
+    q("#pl-equip-v").textContent = fmtMon(P.equipUf);
 
     // Sincronizar deslizadores y campos (sin pisar el que se está editando)
     const pieSl = q("#pl-pie"), balSl = q("#pl-bal"), capSl = q("#pl-cap");
@@ -2744,6 +2812,9 @@ function abrirPlanes(form, aplicar) {
         form.elements.namedItem("habitarId").value = btn.dataset.hab;
         form.elements.namedItem("piePct").value = String(piePct);
         form.elements.namedItem("balloonPct").value = balPct > 0 ? String(balPct) : "";
+        form.elements.namedItem("optEstac").checked = optEstac;
+        form.elements.namedItem("optBodega").checked = optBodega;
+        form.elements.namedItem("optEquip").checked = optEquip;
         if (typeof aplicar === "function") aplicar();
         modal.hidden = true;
       });
@@ -2769,12 +2840,15 @@ function abrirPlanes(form, aplicar) {
     q("#pl-foot").textContent = `Valores referenciales${uf > 0 ? ` (1 UF = ${formatMoney(uf)})` : ""}. A mayor plazo, menor cuota pero entrega más lejana. El balloon baja la cuota mensual y se paga al final.`;
   }
 
-  // Precio UF de la tipología actualmente elegida (para convertir montos ↔ %)
-  const precioUfActual = () => TIPOLOGIAS[q("#pl-tipo").value].superficie * PRECIO_UF_M2;
+  // Precio efectivo (con extras/promo) para convertir montos ↔ %
+  const precioUfActual = () => calcPrecio(TIPOLOGIAS[q("#pl-tipo").value]).precio;
   const aUf = (v) => (planesMoneda === "uf" ? v : uf > 0 ? v / uf : 0);
 
   q("#pl-tipo").addEventListener("input", render);
   q("#pl-anio").addEventListener("input", render);
+  q("#pl-estac").addEventListener("change", () => { optEstac = q("#pl-estac").checked; render(); });
+  q("#pl-bodega").addEventListener("change", () => { optBodega = q("#pl-bodega").checked; render(); });
+  q("#pl-equip").addEventListener("change", () => { optEquip = q("#pl-equip").checked; render(); });
   q("#pl-pie").addEventListener("input", () => { piePct = Number(q("#pl-pie").value); render(); });
   q("#pl-bal").addEventListener("input", () => { balPct = Number(q("#pl-bal").value); render(); });
   q("#pl-cap").addEventListener("input", () => { capClp = Number(q("#pl-cap").value); render(); });
