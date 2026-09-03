@@ -2501,14 +2501,14 @@ function abrirPlanes(form, aplicar) {
         <label>Tipo de unidad<select id="pl-tipo">${tiposOpts}</select></label>
         <label>Año que lo necesita<select id="pl-anio">${aniosOpts}</select></label>
         <label>Pago inicial <span class="pl-pct" id="pl-pie-pct"></span>
-          <div class="pl-inline"><input type="range" id="pl-pie" min="10" max="60" step="1" /><input type="number" class="pl-amt" id="pl-pie-amt" min="0" /></div>
+          <div class="pl-inline"><input type="range" id="pl-pie" min="10" max="60" step="1" /><input type="text" inputmode="numeric" class="pl-amt" id="pl-pie-amt" /></div>
         </label>
         <label>Cuota final / Balloon <span class="pl-pct" id="pl-bal-pct"></span>
-          <div class="pl-inline"><input type="range" id="pl-bal" min="0" max="${BALLOON_MAX}" step="1" /><input type="number" class="pl-amt" id="pl-bal-amt" min="0" /></div>
+          <div class="pl-inline"><input type="range" id="pl-bal" min="0" max="${BALLOON_MAX}" step="1" /><input type="text" inputmode="numeric" class="pl-amt" id="pl-bal-amt" /></div>
         </label>
       </div>
       <div class="planes-cap">
-        <div class="planes-caprow"><label for="pl-cap-amt">Capacidad de pago mensual</label><input type="number" class="pl-amt pl-amt-cap" id="pl-cap-amt" min="0" /></div>
+        <div class="planes-caprow"><label for="pl-cap-amt">Capacidad de pago mensual</label><input type="text" inputmode="numeric" class="pl-amt pl-amt-cap" id="pl-cap-amt" /></div>
         <input type="range" id="pl-cap" min="300000" max="3000000" step="50000" />
       </div>
       <div class="planes-summary" id="pl-summary"></div>
@@ -2527,7 +2527,33 @@ function abrirPlanes(form, aplicar) {
   const fmtMon = (ufVal) =>
     planesMoneda === "uf" ? formatUf(ufVal) : uf > 0 ? formatMoney(ufVal * uf) : "—";
   const pctTxt = (p) => (p % 1 ? p.toFixed(1) : p.toFixed(0)) + "%";
-  const amtNum = (ufVal) => (planesMoneda === "uf" ? Math.round(ufVal * 100) / 100 : Math.round(ufVal * uf));
+  // valor del monto en la moneda mostrada (UF o pesos)
+  const amtVal = (ufVal) => (planesMoneda === "uf" ? ufVal : ufVal * uf);
+  // formatea con separador de miles (pesos) o con decimales (UF), estilo es-CL
+  const fmtAmt = (num) =>
+    planesMoneda === "uf"
+      ? new Intl.NumberFormat("es-CL", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num || 0)
+      : new Intl.NumberFormat("es-CL").format(Math.round(num || 0));
+  // interpreta lo que escribe el usuario (quita puntos de miles / coma decimal)
+  const parseAmt = (str) => {
+    if (planesMoneda === "uf") {
+      const s = String(str).replace(/\s/g, "").replace(",", ".").replace(/\.(?=.*\.)/g, "");
+      return parseFloat(s);
+    }
+    const d = String(str).replace(/[^\d]/g, "");
+    return d === "" ? NaN : parseInt(d, 10);
+  };
+  // reformatea el campo enfocado con separador de miles y deja el cursor al final
+  const reformat = (el, num) => {
+    if (!Number.isFinite(num)) return;
+    el.value = fmtAmt(num);
+    const L = el.value.length;
+    try {
+      el.setSelectionRange(L, L);
+    } catch (e) {
+      /* algunos navegadores no permiten setSelectionRange en ciertos inputs */
+    }
+  };
 
   function render() {
     const tipo = TIPOLOGIAS[q("#pl-tipo").value];
@@ -2550,11 +2576,11 @@ function abrirPlanes(form, aplicar) {
     if (!foco(pieSl)) pieSl.value = Math.round(piePct);
     if (!foco(balSl)) balSl.value = Math.round(balPct);
     if (!foco(capSl)) capSl.value = Math.min(Number(capSl.max), Math.max(Number(capSl.min), capClp));
-    if (!foco(pieAmt)) pieAmt.value = amtNum(pieUf);
-    if (!foco(balAmt)) balAmt.value = amtNum(balUf);
-    if (!foco(capAmt)) capAmt.value = planesMoneda === "uf" ? Math.round(capUf * 100) / 100 : capClp;
-    const step = planesMoneda === "uf" ? "0.5" : "100000";
-    [pieAmt, balAmt, capAmt].forEach((el) => (el.step = step));
+    if (!foco(pieAmt)) pieAmt.value = fmtAmt(amtVal(pieUf));
+    if (!foco(balAmt)) balAmt.value = fmtAmt(amtVal(balUf));
+    if (!foco(capAmt)) capAmt.value = fmtAmt(planesMoneda === "uf" ? capUf : capClp);
+    const im = planesMoneda === "uf" ? "decimal" : "numeric";
+    [pieAmt, balAmt, capAmt].forEach((el) => (el.inputMode = im));
 
     const data = Object.values(HABITARES).map((h) => ({ n: h.id, e: h.anioEntrega, c: h.cuotas, uf: base / h.cuotas }));
     data.sort((a, b) => b.uf - a.uf);
@@ -2623,24 +2649,35 @@ function abrirPlanes(form, aplicar) {
   q("#pl-bal").addEventListener("input", () => { balPct = Number(q("#pl-bal").value); render(); });
   q("#pl-cap").addEventListener("input", () => { capClp = Number(q("#pl-cap").value); render(); });
   q("#pl-pie-amt").addEventListener("input", () => {
-    const v = parseFloat(q("#pl-pie-amt").value);
-    if (!Number.isFinite(v) || v < 0) return;
-    const p = precioUfActual();
-    piePct = Math.min(100, Math.max(10, p > 0 ? (aUf(v) / p) * 100 : 10));
+    const el = q("#pl-pie-amt");
+    const v = parseAmt(el.value);
+    if (Number.isFinite(v) && v >= 0) {
+      const p = precioUfActual();
+      piePct = Math.min(100, Math.max(10, p > 0 ? (aUf(v) / p) * 100 : 10));
+    }
     render();
+    reformat(el, v);
   });
   q("#pl-bal-amt").addEventListener("input", () => {
-    const v = parseFloat(q("#pl-bal-amt").value);
-    if (!Number.isFinite(v) || v < 0) { balPct = 0; return render(); }
-    const p = precioUfActual();
-    balPct = Math.min(BALLOON_MAX, Math.max(0, p > 0 ? (aUf(v) / p) * 100 : 0));
+    const el = q("#pl-bal-amt");
+    const v = parseAmt(el.value);
+    if (!Number.isFinite(v) || v < 0) {
+      balPct = 0;
+    } else {
+      const p = precioUfActual();
+      balPct = Math.min(BALLOON_MAX, Math.max(0, p > 0 ? (aUf(v) / p) * 100 : 0));
+    }
     render();
+    reformat(el, v);
   });
   q("#pl-cap-amt").addEventListener("input", () => {
-    const v = parseFloat(q("#pl-cap-amt").value);
-    if (!Number.isFinite(v) || v < 0) return;
-    capClp = planesMoneda === "uf" ? v * uf : v;
+    const el = q("#pl-cap-amt");
+    const v = parseAmt(el.value);
+    if (Number.isFinite(v) && v >= 0) {
+      capClp = planesMoneda === "uf" ? v * uf : v;
+    }
     render();
+    reformat(el, v);
   });
   q("#pl-moneda").addEventListener("click", () => {
     planesMoneda = planesMoneda === "uf" ? "clp" : "uf";
