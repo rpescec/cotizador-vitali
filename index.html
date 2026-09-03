@@ -929,13 +929,13 @@ input[readonly] {
 
 .planes-box {
   background: var(--white);
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: var(--shadow);
-  max-width: 780px;
+  max-width: 1120px;
   width: 100%;
   max-height: calc(100vh - 24px);
   overflow-y: auto;
-  padding: 14px 18px 12px;
+  padding: 20px 26px 18px;
 }
 
 .planes-head {
@@ -948,37 +948,42 @@ input[readonly] {
 
 .planes-title {
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1.55rem;
   font-weight: 600;
   color: var(--navy);
 }
 
 .planes-sub {
-  font-size: 0.76rem;
+  font-size: 0.92rem;
   color: var(--muted);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .planes-head-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.planes-head-actions .btn-small {
+  font-size: 0.95rem;
+  padding: 8px 16px;
 }
 
 .planes-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
-  margin-bottom: 8px;
+  gap: 10px 22px;
+  margin-bottom: 12px;
 }
 
 .planes-controls label {
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--muted);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .planes-controls b {
@@ -987,13 +992,13 @@ input[readonly] {
 
 .planes-controls select {
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--ink);
   background: var(--input);
   border: 1px solid #c9d6e4;
-  border-radius: 8px;
-  padding: 6px 8px;
+  border-radius: 9px;
+  padding: 9px 12px;
 }
 
 .planes-controls input[type="range"],
@@ -1007,12 +1012,13 @@ input[readonly] {
 .pl-pct {
   color: var(--navy);
   font-weight: 700;
+  font-size: 1.05rem;
 }
 
 .pl-inline {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .pl-inline input[type="range"] {
@@ -1021,16 +1027,16 @@ input[readonly] {
 }
 
 .pl-amt {
-  width: 104px;
+  width: 140px;
   flex-shrink: 0;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 1.02rem;
   font-weight: 700;
   color: var(--ink);
   background: var(--white);
   border: 1px solid #c9d6e4;
-  border-radius: 7px;
-  padding: 5px 7px;
+  border-radius: 8px;
+  padding: 8px 10px;
   text-align: right;
 }
 
@@ -1041,27 +1047,27 @@ input[readonly] {
 }
 
 .pl-amt-cap {
-  width: 160px;
-  font-size: 1.05rem;
+  width: 210px;
+  font-size: 1.35rem;
   font-weight: 800;
   color: var(--navy);
-  padding: 6px 9px;
+  padding: 9px 12px;
 }
 
 .planes-promo {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
-  margin-bottom: 8px;
-  padding: 8px 10px;
+  gap: 10px 20px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
   background: rgba(201, 162, 39, 0.1);
   border: 1px solid rgba(201, 162, 39, 0.3);
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .planes-promo-lbl {
-  font-size: 0.72rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--navy);
 }
@@ -1069,16 +1075,16 @@ input[readonly] {
 .pl-chk {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.78rem;
+  gap: 8px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
 }
 
 .pl-chk input {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   margin: 0;
   accent-color: var(--gold);
   cursor: pointer;
@@ -1088,56 +1094,97 @@ input[readonly] {
   color: var(--navy);
 }
 
+.planes-precio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 18px;
+  margin-bottom: 12px;
+  padding: 14px 20px;
+  background: var(--navy);
+  border-radius: 12px;
+  color: #fff;
+}
+
+.planes-precio-lbl {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.78);
+  margin-right: auto;
+}
+
+.planes-precio-old {
+  font-size: 1.1rem;
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.planes-precio-val {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.05;
+}
+
+.planes-precio-desc {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
 .planes-cap {
   background: var(--input);
-  border-radius: 10px;
-  padding: 8px 14px 10px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  padding: 12px 18px 14px;
+  margin-bottom: 12px;
 }
 
 .planes-caprow {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  margin-bottom: 4px;
 }
 
 .planes-cap label {
-  font-size: 0.74rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--muted);
 }
 
 .planes-capval {
-  font-size: 1.1rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: var(--navy);
 }
 
 .planes-summary {
-  font-size: 0.8rem;
-  line-height: 1.35;
+  font-size: 1.05rem;
+  line-height: 1.4;
   background: rgba(201, 162, 39, 0.12);
   border: 1px solid rgba(201, 162, 39, 0.35);
-  border-radius: 9px;
-  padding: 7px 10px;
-  margin-bottom: 7px;
+  border-radius: 10px;
+  padding: 11px 15px;
+  margin-bottom: 10px;
 }
 
 .planes-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  font-size: 0.66rem;
+  gap: 6px 18px;
+  font-size: 0.82rem;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .planes-legend i {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 13px;
+  height: 13px;
   border-radius: 3px;
-  margin-right: 4px;
+  margin-right: 5px;
   vertical-align: -1px;
 }
 
@@ -1155,36 +1202,38 @@ input[readonly] {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 
 .planes-row {
   display: grid;
-  grid-template-columns: 108px 1fr 86px auto;
+  grid-template-columns: 150px 1fr 130px auto;
   align-items: center;
-  gap: 9px;
+  gap: 14px;
   position: relative;
   z-index: 1;
 }
 
 .planes-rlabel {
-  font-size: 0.68rem;
+  font-size: 0.92rem;
+  font-weight: 600;
   text-align: right;
-  line-height: 1.1;
+  line-height: 1.15;
   color: var(--ink);
 }
 
 .planes-rlabel small {
   display: block;
   color: var(--muted);
-  font-size: 0.58rem;
+  font-size: 0.74rem;
+  font-weight: 400;
 }
 
 .planes-track {
   position: relative;
-  height: 16px;
+  height: 24px;
   background: var(--input);
-  border-radius: 5px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -1205,7 +1254,7 @@ input[readonly] {
 }
 
 .planes-rval {
-  font-size: 0.72rem;
+  font-size: 1.05rem;
   font-weight: 700;
   text-align: right;
   color: var(--ink);
@@ -1215,6 +1264,7 @@ input[readonly] {
 .planes-rval small {
   font-weight: 400;
   color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .planes-rval.no {
@@ -1227,8 +1277,8 @@ input[readonly] {
   background: var(--white);
   color: var(--navy);
   border-radius: 999px;
-  padding: 3px 11px;
-  font-size: 0.7rem;
+  padding: 6px 18px;
+  font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -1252,31 +1302,37 @@ input[readonly] {
 
 .planes-capline span {
   position: absolute;
-  bottom: -14px;
+  bottom: -15px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--navy);
   white-space: nowrap;
   background: var(--white);
-  padding: 0 3px;
+  padding: 0 4px;
 }
 
 .planes-foot {
-  font-size: 0.64rem;
+  font-size: 0.8rem;
   color: var(--muted);
-  margin: 8px 0 0;
-  line-height: 1.35;
+  margin: 10px 0 0;
+  line-height: 1.4;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 680px) {
   .planes-controls {
     grid-template-columns: 1fr;
   }
   .planes-row {
-    grid-template-columns: 84px 1fr 76px auto;
-    gap: 6px;
+    grid-template-columns: 92px 1fr 96px auto;
+    gap: 8px;
+  }
+  .planes-rlabel {
+    font-size: 0.78rem;
+  }
+  .planes-precio-val {
+    font-size: 1.5rem;
   }
 }
 
@@ -2686,6 +2742,7 @@ function abrirPlanes(form, aplicar) {
         <label class="pl-chk"><input type="checkbox" id="pl-bodega" /> Bodega <b id="pl-bodega-v"></b></label>
         <label class="pl-chk"><input type="checkbox" id="pl-equip" /> Equip. <b id="pl-equip-v"></b></label>
       </div>
+      <div class="planes-precio" id="pl-precio"></div>
       <div class="planes-cap">
         <div class="planes-caprow"><label for="pl-cap-amt">Capacidad de pago mensual</label><input type="text" inputmode="numeric" class="pl-amt pl-amt-cap" id="pl-cap-amt" /></div>
         <input type="range" id="pl-cap" min="300000" max="3000000" step="50000" />
@@ -2767,6 +2824,13 @@ function abrirPlanes(form, aplicar) {
     q("#pl-estac-v").textContent = fmtMon(P.estacUf);
     q("#pl-bodega-v").textContent = fmtMon(P.bodegaUf);
     q("#pl-equip-v").textContent = fmtMon(P.equipUf);
+
+    // Valor final del departamento (con precio de lista tachado y descuento si aplica)
+    q("#pl-precio").innerHTML =
+      `<span class="planes-precio-lbl">Valor final del departamento</span>` +
+      (P.promoUf > 0 ? `<span class="planes-precio-old">${fmtMon(P.precioLista)}</span>` : "") +
+      `<span class="planes-precio-val">${fmtMon(P.precio)}</span>` +
+      (P.promoUf > 0 ? `<span class="planes-precio-desc">− ${fmtMon(P.promoUf)} promo</span>` : "");
 
     // Sincronizar deslizadores y campos (sin pisar el que se está editando)
     const pieSl = q("#pl-pie"), balSl = q("#pl-bal"), capSl = q("#pl-cap");
