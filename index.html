@@ -967,6 +967,50 @@ input[readonly] {
   margin: 0;
 }
 
+.pl-pct {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.pl-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pl-inline input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.pl-amt {
+  width: 104px;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid #c9d6e4;
+  border-radius: 7px;
+  padding: 5px 7px;
+  text-align: right;
+}
+
+.pl-amt:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(12, 35, 64, 0.12);
+}
+
+.pl-amt-cap {
+  width: 160px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--navy);
+  padding: 6px 9px;
+}
+
 .planes-cap {
   background: var(--input);
   border-radius: 10px;
@@ -2426,8 +2470,6 @@ function abrirPlanes(form, aplicar) {
   const modal = document.querySelector("#planes-modal");
   const st = readForm(form);
   const tipoId = st.tipologiaId || Object.keys(TIPOLOGIAS)[0];
-  const pieInit = Math.min(40, Math.max(10, Math.round(Number(st.piePct) || PIE_STD)));
-  const balInit = Math.min(BALLOON_MAX, Math.max(0, Math.round(Number(st.balloonPct) || 0)));
   const uf = Number(st.uf) || 0;
 
   const tiposOpts = Object.values(TIPOLOGIAS)
@@ -2437,6 +2479,11 @@ function abrirPlanes(form, aplicar) {
   const aniosOpts =
     `<option value="9999">Cualquiera</option>` +
     anios.map((y) => `<option value="${y}">Hasta ${y}</option>`).join("");
+
+  // Estado canónico (independiente de la moneda mostrada)
+  let piePct = Math.min(100, Math.max(10, Number(st.piePct) || PIE_STD));
+  let balPct = Math.min(BALLOON_MAX, Math.max(0, Number(st.balloonPct) || 0));
+  let capClp = 1000000;
 
   modal.innerHTML = `
     <div class="planes-box">
@@ -2453,12 +2500,16 @@ function abrirPlanes(form, aplicar) {
       <div class="planes-controls">
         <label>Tipo de unidad<select id="pl-tipo">${tiposOpts}</select></label>
         <label>Año que lo necesita<select id="pl-anio">${aniosOpts}</select></label>
-        <label>Pago inicial: <b id="pl-pieval"></b><input type="range" id="pl-pie" min="10" max="40" step="1" value="${pieInit}" /></label>
-        <label>Cuota final / Balloon: <b id="pl-balval"></b><input type="range" id="pl-bal" min="0" max="${BALLOON_MAX}" step="1" value="${balInit}" /></label>
+        <label>Pago inicial <span class="pl-pct" id="pl-pie-pct"></span>
+          <div class="pl-inline"><input type="range" id="pl-pie" min="10" max="60" step="1" /><input type="number" class="pl-amt" id="pl-pie-amt" min="0" /></div>
+        </label>
+        <label>Cuota final / Balloon <span class="pl-pct" id="pl-bal-pct"></span>
+          <div class="pl-inline"><input type="range" id="pl-bal" min="0" max="${BALLOON_MAX}" step="1" /><input type="number" class="pl-amt" id="pl-bal-amt" min="0" /></div>
+        </label>
       </div>
       <div class="planes-cap">
-        <div class="planes-caprow"><label>Capacidad de pago mensual</label><div class="planes-capval" id="pl-capval"></div></div>
-        <input type="range" id="pl-cap" min="300000" max="3000000" step="50000" value="1000000" />
+        <div class="planes-caprow"><label for="pl-cap-amt">Capacidad de pago mensual</label><input type="number" class="pl-amt pl-amt-cap" id="pl-cap-amt" min="0" /></div>
+        <input type="range" id="pl-cap" min="300000" max="3000000" step="50000" />
       </div>
       <div class="planes-summary" id="pl-summary"></div>
       <div class="planes-legend">
@@ -2472,34 +2523,40 @@ function abrirPlanes(form, aplicar) {
   `;
 
   const q = (sel) => modal.querySelector(sel);
+  const foco = (el) => document.activeElement === el;
   const fmtMon = (ufVal) =>
     planesMoneda === "uf" ? formatUf(ufVal) : uf > 0 ? formatMoney(ufVal * uf) : "—";
+  const pctTxt = (p) => (p % 1 ? p.toFixed(1) : p.toFixed(0)) + "%";
+  const amtNum = (ufVal) => (planesMoneda === "uf" ? Math.round(ufVal * 100) / 100 : Math.round(ufVal * uf));
 
   function render() {
     const tipo = TIPOLOGIAS[q("#pl-tipo").value];
-    const pie = Number(q("#pl-pie").value);
-    const bal = Number(q("#pl-bal").value);
     const anio = Number(q("#pl-anio").value);
-    const capClp = Number(q("#pl-cap").value);
-    const capUf = uf > 0 ? capClp / uf : 0;
     const precioUf = tipo.superficie * PRECIO_UF_M2;
-    const pieUf = precioUf * (pie / 100);
-    const saldo = precioUf * (1 - pie / 100);
-    const balUf = precioUf * (bal / 100);
+    const pieUf = precioUf * (piePct / 100);
+    const saldo = precioUf * (1 - piePct / 100);
+    const balUf = precioUf * (balPct / 100);
     const base = Math.max(0, saldo - balUf);
+    const capUf = uf > 0 ? capClp / uf : 0;
 
-    q("#pl-pieval").textContent = `${pie}% · ${fmtMon(pieUf)}`;
-    q("#pl-balval").textContent = `${bal}%${bal ? ` · ${fmtMon(balUf)}` : ""}`;
-    q("#pl-capval").textContent = planesMoneda === "uf" ? formatUf(capUf) : formatMoney(capClp);
+    q("#pl-pie-pct").textContent = pctTxt(piePct);
+    q("#pl-bal-pct").textContent = pctTxt(balPct);
     q("#pl-moneda").textContent = planesMoneda === "uf" ? "Ver en $" : "Ver en UF";
-    q("#pl-sub").textContent = `${tipo.nombre} · ${formatM2(tipo.superficie)} · ${fmtMon(precioUf)} · pie ${fmtMon(pieUf)}${bal ? ` · balloon ${fmtMon(balUf)}` : ""}`;
+    q("#pl-sub").textContent = `${tipo.nombre} · ${formatM2(tipo.superficie)} · ${fmtMon(precioUf)} · pie ${fmtMon(pieUf)}${balPct ? ` · balloon ${fmtMon(balUf)}` : ""}`;
 
-    const data = Object.values(HABITARES).map((h) => ({
-      n: h.id,
-      e: h.anioEntrega,
-      c: h.cuotas,
-      uf: base / h.cuotas,
-    }));
+    // Sincronizar deslizadores y campos (sin pisar el que se está editando)
+    const pieSl = q("#pl-pie"), balSl = q("#pl-bal"), capSl = q("#pl-cap");
+    const pieAmt = q("#pl-pie-amt"), balAmt = q("#pl-bal-amt"), capAmt = q("#pl-cap-amt");
+    if (!foco(pieSl)) pieSl.value = Math.round(piePct);
+    if (!foco(balSl)) balSl.value = Math.round(balPct);
+    if (!foco(capSl)) capSl.value = Math.min(Number(capSl.max), Math.max(Number(capSl.min), capClp));
+    if (!foco(pieAmt)) pieAmt.value = amtNum(pieUf);
+    if (!foco(balAmt)) balAmt.value = amtNum(balUf);
+    if (!foco(capAmt)) capAmt.value = planesMoneda === "uf" ? Math.round(capUf * 100) / 100 : capClp;
+    const step = planesMoneda === "uf" ? "0.5" : "100000";
+    [pieAmt, balAmt, capAmt].forEach((el) => (el.step = step));
+
+    const data = Object.values(HABITARES).map((h) => ({ n: h.id, e: h.anioEntrega, c: h.cuotas, uf: base / h.cuotas }));
     data.sort((a, b) => b.uf - a.uf);
     const maxUf = data[0].uf || 1;
 
@@ -2529,9 +2586,8 @@ function abrirPlanes(form, aplicar) {
       btn.addEventListener("click", () => {
         form.elements.namedItem("tipologiaId").value = q("#pl-tipo").value;
         form.elements.namedItem("habitarId").value = btn.dataset.hab;
-        form.elements.namedItem("piePct").value = q("#pl-pie").value;
-        const b = q("#pl-bal").value;
-        form.elements.namedItem("balloonPct").value = Number(b) > 0 ? b : "";
+        form.elements.namedItem("piePct").value = String(piePct);
+        form.elements.namedItem("balloonPct").value = balPct > 0 ? String(balPct) : "";
         if (typeof aplicar === "function") aplicar();
         modal.hidden = true;
       });
@@ -2543,7 +2599,7 @@ function abrirPlanes(form, aplicar) {
       const cr = chart.getBoundingClientRect();
       const tr = track.getBoundingClientRect();
       capline.style.left = tr.left - cr.left + Math.min(1, capUf / maxUf) * tr.width + "px";
-      capline.style.display = capUf <= maxUf ? "block" : "none";
+      capline.style.display = capUf <= maxUf && capUf > 0 ? "block" : "none";
     }
 
     const capTxt = planesMoneda === "uf" ? formatUf(capUf) : formatMoney(capClp);
@@ -2557,9 +2613,35 @@ function abrirPlanes(form, aplicar) {
     q("#pl-foot").textContent = `Valores referenciales${uf > 0 ? ` (1 UF = ${formatMoney(uf)})` : ""}. A mayor plazo, menor cuota pero entrega más lejana. El balloon baja la cuota mensual y se paga al final.`;
   }
 
-  modal
-    .querySelectorAll("#pl-tipo,#pl-anio,#pl-pie,#pl-bal,#pl-cap")
-    .forEach((el) => el.addEventListener("input", render));
+  // Precio UF de la tipología actualmente elegida (para convertir montos ↔ %)
+  const precioUfActual = () => TIPOLOGIAS[q("#pl-tipo").value].superficie * PRECIO_UF_M2;
+  const aUf = (v) => (planesMoneda === "uf" ? v : uf > 0 ? v / uf : 0);
+
+  q("#pl-tipo").addEventListener("input", render);
+  q("#pl-anio").addEventListener("input", render);
+  q("#pl-pie").addEventListener("input", () => { piePct = Number(q("#pl-pie").value); render(); });
+  q("#pl-bal").addEventListener("input", () => { balPct = Number(q("#pl-bal").value); render(); });
+  q("#pl-cap").addEventListener("input", () => { capClp = Number(q("#pl-cap").value); render(); });
+  q("#pl-pie-amt").addEventListener("input", () => {
+    const v = parseFloat(q("#pl-pie-amt").value);
+    if (!Number.isFinite(v) || v < 0) return;
+    const p = precioUfActual();
+    piePct = Math.min(100, Math.max(10, p > 0 ? (aUf(v) / p) * 100 : 10));
+    render();
+  });
+  q("#pl-bal-amt").addEventListener("input", () => {
+    const v = parseFloat(q("#pl-bal-amt").value);
+    if (!Number.isFinite(v) || v < 0) { balPct = 0; return render(); }
+    const p = precioUfActual();
+    balPct = Math.min(BALLOON_MAX, Math.max(0, p > 0 ? (aUf(v) / p) * 100 : 0));
+    render();
+  });
+  q("#pl-cap-amt").addEventListener("input", () => {
+    const v = parseFloat(q("#pl-cap-amt").value);
+    if (!Number.isFinite(v) || v < 0) return;
+    capClp = planesMoneda === "uf" ? v * uf : v;
+    render();
+  });
   q("#pl-moneda").addEventListener("click", () => {
     planesMoneda = planesMoneda === "uf" ? "clp" : "uf";
     render();
