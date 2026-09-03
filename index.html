@@ -226,6 +226,43 @@ input[readonly] {
   cursor: default;
 }
 
+.check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--white);
+}
+
+.check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.check > span {
+  flex: 1;
+}
+
+.check span small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.check b {
+  color: var(--navy);
+  white-space: nowrap;
+}
+
 .preview {
   padding: 0;
   overflow: hidden;
@@ -1272,13 +1309,13 @@ input[readonly] {
   }
 
   .block {
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     break-inside: avoid;
   }
 
   .block h3 {
-    padding: 3px 7px;
-    margin-bottom: 4px;
+    padding: 2px 7px;
+    margin-bottom: 3px;
     font-size: 0.66rem;
   }
 
@@ -1287,7 +1324,7 @@ input[readonly] {
   }
 
   .kv {
-    padding: 1.5px 8px;
+    padding: 1px 8px;
   }
 
   .kv .k {
@@ -1304,7 +1341,7 @@ input[readonly] {
 
   .table th,
   .table td {
-    padding: 3px 7px;
+    padding: 2px 7px;
   }
 
   .table th {
@@ -1317,10 +1354,10 @@ input[readonly] {
   }
 
   .terms {
-    font-size: 0.64rem;
-    line-height: 1.2;
-    column-count: 2;
-    column-gap: 18px;
+    font-size: 0.62rem;
+    line-height: 1.18;
+    column-count: 3;
+    column-gap: 14px;
     padding-left: 16px;
   }
 
@@ -1348,6 +1385,12 @@ const PIE_STD = 15;
 const DESC_MAX = 2; // tope de descuento (%)
 const BALLOON_MAX = 35; // tope de cuota final / balloon (%)
 const RESERVA_MIN = 500000; // reserva mínima en pesos (cuando se usa)
+
+// Ítems que se suman al valor de la unidad; al seleccionarlos se descuentan como
+// "promoción de preventa" (quedan gratis). Estac/bodega se multiplican por la cantidad.
+const OPT_ESTAC_UF = 200; // por estacionamiento
+const OPT_BODEGA_UF = 100; // por bodega
+const OPT_EQUIP_UF = 25; // equipamiento (encimera, A/A, horno eléctrico, frigobar) por unidad
 
 /** Correo del CRM (Kommo) que siempre va en copia (CC) al enviar la cotización. */
 const CRM_EMAIL = "vitalisuites@mail.kommo.com";
@@ -1452,6 +1495,9 @@ const DEFAULTS = {
   descPct: "",
   balloonPct: "",
   reservaClp: "",
+  optEstac: false,
+  optBodega: false,
+  optEquip: false,
 };
 
 /** @type {{ valor: number|null, fecha: string|null, status: 'idle'|'loading'|'ok'|'error', message: string }} */
@@ -1601,14 +1647,30 @@ function precioFromTipologia(tipo) {
 function calc(state) {
   const tipo = getTipologia(state.tipologiaId);
   const habitar = getHabitar(state.habitarId);
-  const precioBase = precioFromTipologia(tipo);
+  const precioDepto = precioFromTipologia(tipo);
 
-  // Descuento (% del precio de venta), tope DESC_MAX
+  // Ítems que se suman al valor de la unidad (estac/bodega × cantidad de la tipología)
+  const nEstac = tipo ? tipo.estacionamientos : 0;
+  const nBodega = tipo ? tipo.bodegas : 0;
+  const estacUf = nEstac * OPT_ESTAC_UF;
+  const bodegaUf = nBodega * OPT_BODEGA_UF;
+  const equipUf = tipo ? OPT_EQUIP_UF : 0;
+  const extrasUf = estacUf + bodegaUf + equipUf;
+  const precioLista = excelRound(precioDepto + extrasUf, 2);
+
+  // Promoción de preventa: los ítems seleccionados se descuentan (quedan gratis)
+  const promoUf = excelRound(
+    (state.optEstac ? estacUf : 0) + (state.optBodega ? bodegaUf : 0) + (state.optEquip ? equipUf : 0),
+    2
+  );
+  const trasPromo = excelRound(precioLista - promoUf, 2);
+
+  // Descuento manual (% del precio ya con promo), tope DESC_MAX
   let descPctNum = Number(state.descPct) || 0;
   if (descPctNum < 0) descPctNum = 0;
   if (descPctNum > DESC_MAX) descPctNum = DESC_MAX;
-  const descUf = excelRound(precioBase * (descPctNum / 100), 2);
-  const precio = excelRound(precioBase - descUf, 2); // precio final (con descuento)
+  const descUf = excelRound(trasPromo * (descPctNum / 100), 2);
+  const precio = excelRound(trasPromo - descUf, 2); // precio final
 
   // Cuota final / balloon (% del precio), tope BALLOON_MAX
   let balloonPctNum = Number(state.balloonPct) || 0;
@@ -1647,7 +1709,19 @@ function calc(state) {
     habitar,
     anioEntrega: habitar ? habitar.anioEntrega : "",
     plazoAnios: plazo,
-    precioBaseUf: precioBase,
+    precioDeptoUf: precioDepto,
+    nEstac,
+    nBodega,
+    estacUf,
+    bodegaUf,
+    equipUf,
+    extrasUf,
+    precioListaUf: precioLista,
+    optEstac: !!state.optEstac,
+    optBodega: !!state.optBodega,
+    optEquip: !!state.optEquip,
+    promoUf,
+    hasPromo: promoUf > 0,
     descPct: descPctNum,
     descUf,
     hasDescuento: descPctNum > 0 && descUf > 0,
@@ -1665,7 +1739,12 @@ function calc(state) {
     saldoPieUf,
     saldoPieClp,
     hasReserva,
-    precioBaseClp: precioBase * uf,
+    precioDeptoClp: precioDepto * uf,
+    estacClp: estacUf * uf,
+    bodegaClp: bodegaUf * uf,
+    equipClp: equipUf * uf,
+    precioListaClp: precioLista * uf,
+    promoClp: promoUf * uf,
     descClp: descUf * uf,
     precioClp: precio * uf,
     pieClp: pieUf * uf,
@@ -1818,6 +1897,16 @@ function renderShell() {
           </div>
 
           <div class="group">
+            <p class="group-label">Promoción de preventa</p>
+            <p class="hint">Estos ítems se suman al precio. Actívalos para aplicar el descuento de preventa (quedan gratis).</p>
+            <div class="fields">
+              <label class="check"><input type="checkbox" name="optEstac" /><span>Estacionamiento</span><b id="val-estac"></b></label>
+              <label class="check"><input type="checkbox" name="optBodega" /><span>Bodega</span><b id="val-bodega"></b></label>
+              <label class="check"><input type="checkbox" name="optEquip" /><span>Equipamiento <small>(encimera, A/A, horno, frigobar)</small></span><b id="val-equip"></b></label>
+            </div>
+          </div>
+
+          <div class="group">
             <p class="group-label">Condiciones comerciales</p>
             <div class="fields">
               <div class="fields two">
@@ -1952,8 +2041,6 @@ function renderSheet(state, totals) {
         ${kv("Superficie útil (m²)", superficie)}
         ${kv("Torre / Habitar", habitar ? habitar.nombre : "—")}
         ${kv("Año de entrega", totals.anioEntrega ? String(totals.anioEntrega) : "—")}
-        ${kv("Estacionamientos incluidos", estIncluidos)}
-        ${kv("Bodegas incluidas", bodIncluidas)}
       </div>
     </div>
 
@@ -1973,24 +2060,52 @@ function renderSheet(state, totals) {
         </thead>
         <tbody>
           <tr>
-            <td>Precio de venta${tipo ? ` <span class="soft">(${formatM2(tipo.superficie)} × ${PRECIO_UF_M2} UF)</span>` : ""}</td>
-            <td class="num">${hasPrecio ? formatUf(totals.precioBaseUf) : "—"}</td>
-            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioBaseClp) : "—"}</td>
+            <td>Departamento${tipo ? ` <span class="soft">(${formatM2(tipo.superficie)} × ${PRECIO_UF_M2} UF)</span>` : ""}</td>
+            <td class="num">${hasPrecio ? formatUf(totals.precioDeptoUf) : "—"}</td>
+            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioDeptoClp) : "—"}</td>
           </tr>
+          ${
+            hasPrecio
+              ? `<tr>
+            <td>Estacionamiento <span class="soft">(${totals.nEstac} × ${OPT_ESTAC_UF} UF)</span></td>
+            <td class="num">${formatUf(totals.estacUf)}</td>
+            <td class="num">${totals.hasUf ? formatMoney(totals.estacClp) : "—"}</td>
+          </tr>
+          <tr>
+            <td>Bodega <span class="soft">(${totals.nBodega} × ${OPT_BODEGA_UF} UF)</span></td>
+            <td class="num">${formatUf(totals.bodegaUf)}</td>
+            <td class="num">${totals.hasUf ? formatMoney(totals.bodegaClp) : "—"}</td>
+          </tr>
+          <tr>
+            <td>Equipamiento <span class="soft">(encimera, A/A, horno, frigobar)</span></td>
+            <td class="num">${formatUf(totals.equipUf)}</td>
+            <td class="num">${totals.hasUf ? formatMoney(totals.equipClp) : "—"}</td>
+          </tr>`
+              : ""
+          }
+          ${
+            totals.hasPromo
+              ? `<tr>
+            <td>Descuento promoción preventa <span class="soft">(${[totals.optEstac ? "estac." : "", totals.optBodega ? "bodega" : "", totals.optEquip ? "equip." : ""].filter(Boolean).join(", ")})</span></td>
+            <td class="num">− ${formatUf(totals.promoUf)}</td>
+            <td class="num">${totals.hasUf ? "− " + formatMoney(totals.promoClp) : "—"}</td>
+          </tr>`
+              : ""
+          }
           ${
             totals.hasDescuento
               ? `<tr>
             <td>Descuento <span class="soft">(${formatPct(totals.descPct)})</span></td>
             <td class="num">− ${formatUf(totals.descUf)}</td>
             <td class="num">${totals.hasUf ? "− " + formatMoney(totals.descClp) : "—"}</td>
-          </tr>
-          <tr class="highlight">
-            <td>Precio con descuento</td>
-            <td class="num">${formatUf(totals.precioUf)}</td>
-            <td class="num">${totals.hasUf ? formatMoney(totals.precioClp) : "—"}</td>
           </tr>`
               : ""
           }
+          <tr class="highlight">
+            <td>Precio de venta</td>
+            <td class="num">${hasPrecio ? formatUf(totals.precioUf) : "—"}</td>
+            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioClp) : "—"}</td>
+          </tr>
           <tr>
             <td>Cuota inicial <span class="soft">(${formatPct(totals.piePct)})</span></td>
             <td class="num">${hasPrecio ? formatUf(totals.pieUf) : "—"}</td>
@@ -2071,6 +2186,11 @@ function renderSheet(state, totals) {
         <li>El año de entrega es estimado y está sujeto al avance y recepción de la obra.</li>
         <li>La cuota inicial podrá pactarse en cuotas según las condiciones que se acuerden en el contrato.</li>
         ${
+          totals.hasPromo
+            ? `<li>La promoción de preventa descuenta los ítems seleccionados (estacionamiento, bodega y/o equipamiento), que quedan sin costo para el cliente.</li>`
+            : ""
+        }
+        ${
           totals.hasReserva
             ? `<li>La reserva indicada se abona a la cuota inicial.</li>`
             : ""
@@ -2126,6 +2246,11 @@ function readForm(form) {
       state[key] = value;
     }
   }
+  // Checkboxes (no aparecen en FormData si están desmarcados)
+  ["optEstac", "optBodega", "optEquip"].forEach((k) => {
+    const el = form.elements.namedItem(k);
+    state[k] = !!(el && el.checked);
+  });
   return state;
 }
 
@@ -2133,7 +2258,8 @@ function fillForm(form, state) {
   for (const [key, value] of Object.entries(state)) {
     const el = form.elements.namedItem(key);
     if (!el) continue;
-    el.value = value ?? "";
+    if (el.type === "checkbox") el.checked = !!value;
+    else el.value = value ?? "";
   }
 }
 
@@ -2197,13 +2323,17 @@ function buildEmailBody(state, totals) {
     "RESUMEN DE LA COTIZACIÓN",
     `• Tipología: ${tipo.nombre} (${formatM2(tipo.superficie)}) — incluye ${tipo.estacionamientos} estacionamiento(s) y ${tipo.bodegas} bodega(s)`,
     `• Torre / Habitar: ${totals.habitar ? totals.habitar.nombre : "—"} · Entrega estimada: ${totals.anioEntrega || "—"}`,
-    `• Precio de venta: ${clp(formatUf(totals.precioBaseUf), formatMoney(totals.precioBaseClp))}`,
-    ...(totals.hasDescuento
-      ? [
-          `• Descuento (${formatPct(totals.descPct)}): − ${clp(formatUf(totals.descUf), formatMoney(totals.descClp))}`,
-          `• Precio con descuento: ${clp(formatUf(totals.precioUf), formatMoney(totals.precioClp))}`,
-        ]
+    `• Departamento: ${clp(formatUf(totals.precioDeptoUf), formatMoney(totals.precioDeptoClp))}`,
+    `• Estacionamiento (${totals.nEstac}): ${clp(formatUf(totals.estacUf), formatMoney(totals.estacClp))}`,
+    `• Bodega (${totals.nBodega}): ${clp(formatUf(totals.bodegaUf), formatMoney(totals.bodegaClp))}`,
+    `• Equipamiento: ${clp(formatUf(totals.equipUf), formatMoney(totals.equipClp))}`,
+    ...(totals.hasPromo
+      ? [`• Descuento promoción preventa: − ${clp(formatUf(totals.promoUf), formatMoney(totals.promoClp))}`]
       : []),
+    ...(totals.hasDescuento
+      ? [`• Descuento (${formatPct(totals.descPct)}): − ${clp(formatUf(totals.descUf), formatMoney(totals.descClp))}`]
+      : []),
+    `• Precio de venta: ${clp(formatUf(totals.precioUf), formatMoney(totals.precioClp))}`,
     `• Cuota inicial (${formatPct(totals.piePct)}): ${clp(formatUf(totals.pieUf), formatMoney(totals.pieClp))}`,
     ...(totals.hasReserva
       ? [
@@ -2271,16 +2401,16 @@ const PDF_COMPACT_CSS = `
 #sheet .sheet-logo{max-height:38px!important}
 #sheet .sheet-head{padding-bottom:6px!important;margin-bottom:7px!important}
 #sheet .doc-title{font-size:1.3rem!important}
-#sheet .block{margin-bottom:5px!important}
-#sheet .block h3{padding:3px 7px!important;margin-bottom:4px!important;font-size:.66rem!important}
+#sheet .block{margin-bottom:3px!important}
+#sheet .block h3{padding:2px 7px!important;margin-bottom:3px!important;font-size:.66rem!important}
 #sheet .grid-2{gap:0 20px!important}
-#sheet .kv{padding:1.5px 8px!important}
+#sheet .kv{padding:1px 8px!important}
 #sheet .kv .k{font-size:.74rem!important}#sheet .kv .v{font-size:.74rem!important}
 #sheet .table{font-size:.8rem!important}
-#sheet .table th,#sheet .table td{padding:3px 7px!important}
+#sheet .table th,#sheet .table td{padding:2px 7px!important}
 #sheet .table th{font-size:.62rem!important}
 #sheet .uf-note{font-size:.72rem!important;margin-bottom:4px!important}
-#sheet .terms{font-size:.64rem!important;line-height:1.2!important;column-count:2!important;column-gap:18px!important}
+#sheet .terms{font-size:.62rem!important;line-height:1.18!important;column-count:3!important;column-gap:14px!important}
 #sheet .terms li{margin-bottom:1px!important;break-inside:avoid!important}
 #sheet .sheet-foot{margin-top:6px!important;padding-top:6px!important;font-size:.7rem!important}
 `;
@@ -2375,7 +2505,7 @@ async function generarPdfBlob(filename) {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       blob = await window.html2pdf().set(opt).from(sheet).outputPdf("blob");
       const paginas = await contarPaginasPdf(blob);
-      if (blob && blob.size >= 80000 && paginas === 1) break; // salió bien
+      if (blob && blob.size >= 80000 && paginas >= 1 && paginas <= 2) break; // válido (1 o 2 págs)
       console.warn(`PDF intento ${intento}: size=${blob && blob.size}, paginas=${paginas}`);
     }
     return blob;
@@ -2415,7 +2545,7 @@ async function enviarAutomatico(form, state, totals, setStatus) {
     // Red de seguridad: NUNCA enviar un PDF vacío o de más de 1 página
     // (evita que le llegue una cotización en blanco al cliente).
     const paginas = await contarPaginasPdf(pdfBlob);
-    if (!pdfBlob || pdfBlob.size < 80000 || paginas !== 1) {
+    if (!pdfBlob || pdfBlob.size < 80000 || paginas < 1 || paginas > 2) {
       console.warn("PDF inválido, no se envía", {
         size: pdfBlob && pdfBlob.size,
         paginas,
@@ -2707,7 +2837,16 @@ function boot() {
       chip.classList.toggle("is-active", Number(chip.dataset.pie) === Number(state.piePct));
     });
     updateTipoUI(form, state.tipologiaId || "");
-    renderSheet(state, calc(state));
+    const totals = calc(state);
+    // Valores de los ítems de preventa según la tipología (× cantidad)
+    const setVal = (id, uf) => {
+      const el = document.querySelector(id);
+      if (el) el.textContent = uf > 0 ? formatUf(uf, 0) : "—";
+    };
+    setVal("#val-estac", totals.estacUf);
+    setVal("#val-bodega", totals.bodegaUf);
+    setVal("#val-equip", totals.equipUf);
+    renderSheet(state, totals);
   };
 
   const balloonEl = form.elements.namedItem("balloonPct");
