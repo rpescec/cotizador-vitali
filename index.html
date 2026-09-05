@@ -399,6 +399,12 @@ input[readonly] {
   color: var(--navy);
 }
 
+.table .subtotal td {
+  border-top: 1.5px solid #c9d6e4;
+  font-weight: 700;
+  color: var(--navy);
+}
+
 .uf-note {
   display: flex;
   justify-content: space-between;
@@ -1475,7 +1481,9 @@ input[readonly] {
     <div id="app"></div>
     <script type="module">
 
-const PRECIO_UF_M2 = 90;
+const PRECIO_UF_M2 = 99; // valor de lista por m²
+const PRECIO_UF_M2_PROMO = 90; // valor por m² con el descuento de preventa aplicado
+const DESC_DEPTO_LBL = "9,09%"; // etiqueta del descuento de departamento (99 → 90)
 const PIE_MIN = 10;
 const PIE_STD = 15;
 const DESC_MAX = 2; // tope de descuento (%)
@@ -1591,9 +1599,11 @@ const DEFAULTS = {
   descPct: "",
   balloonPct: "",
   reservaClp: "",
+  optDepto: true,
   optEstac: false,
   optBodega: false,
   optEquip: false,
+  incluirPlanes: false,
 };
 
 /** @type {{ valor: number|null, fecha: string|null, status: 'idle'|'loading'|'ok'|'error', message: string }} */
@@ -1740,6 +1750,19 @@ function precioFromTipologia(tipo) {
   return excelRound(tipo.superficie * PRECIO_UF_M2, 2);
 }
 
+/** Valor de la cuota mensual (UF) para un precio, % de pie, % de balloon y N de cuotas.
+ *  Usa exactamente los mismos pasos y redondeos que calc(), para que la cotización
+ *  y el simulador "planes por capacidad" muestren SIEMPRE el mismo valor. */
+function planCuotaUf(precio, piePctNum, balloonPctNum, cuotas) {
+  if (!(cuotas > 0) || !(precio > 0)) return 0;
+  const pieUf = excelRound(precio * (piePctNum / 100), 2);
+  const saldo = excelRound(precio - pieUf, 2);
+  let balloonUf = excelRound(precio * (balloonPctNum / 100), 2);
+  if (balloonUf > saldo) balloonUf = saldo;
+  const saldoEnCuotas = excelRound(saldo - balloonUf, 2);
+  return excelRound(saldoEnCuotas / cuotas, 2);
+}
+
 function calc(state) {
   const tipo = getTipologia(state.tipologiaId);
   const habitar = getHabitar(state.habitarId);
@@ -1754,9 +1777,17 @@ function calc(state) {
   const extrasUf = estacUf + bodegaUf + equipUf;
   const precioLista = excelRound(precioDepto + extrasUf, 2);
 
-  // Promoción de preventa: los ítems seleccionados se descuentan (quedan gratis)
+  // Descuento de preventa sobre el departamento: lleva el m² de lista (99) al valor
+  // de preventa (90). Se calcula como superficie × (99 − 90) para que quede exacto.
+  const deptoDescUf = tipo ? excelRound(tipo.superficie * (PRECIO_UF_M2 - PRECIO_UF_M2_PROMO), 2) : 0;
+
+  // Promoción de preventa: los ítems seleccionados se descuentan (estac/bodega/equip
+  // quedan gratis; el departamento baja 9,09%).
   const promoUf = excelRound(
-    (state.optEstac ? estacUf : 0) + (state.optBodega ? bodegaUf : 0) + (state.optEquip ? equipUf : 0),
+    (state.optDepto ? deptoDescUf : 0) +
+      (state.optEstac ? estacUf : 0) +
+      (state.optBodega ? bodegaUf : 0) +
+      (state.optEquip ? equipUf : 0),
     2
   );
   const trasPromo = excelRound(precioLista - promoUf, 2);
@@ -1813,9 +1844,13 @@ function calc(state) {
     equipUf,
     extrasUf,
     precioListaUf: precioLista,
+    optDepto: !!state.optDepto,
     optEstac: !!state.optEstac,
     optBodega: !!state.optBodega,
     optEquip: !!state.optEquip,
+    incluirPlanes: !!state.incluirPlanes,
+    deptoDescUf,
+    deptoDescClp: deptoDescUf * uf,
     promoUf,
     hasPromo: promoUf > 0,
     descPct: descPctNum,
@@ -1945,7 +1980,7 @@ function renderShell() {
 
           <div class="group">
             <p class="group-label">Tipología</p>
-            <p class="hint">Valor referencia: <strong>${PRECIO_UF_M2} UF/m²</strong> · precios en UF y $ · incluye est. y bodega(s)</p>
+            <p class="hint">Lista <strong>${PRECIO_UF_M2} UF/m²</strong> · preventa <strong>${PRECIO_UF_M2_PROMO} UF/m²</strong> · precios de lista en UF y $ · incluye est. y bodega(s)</p>
             <div class="tipo-grid" id="tipo-grid">
               ${tipologiasHtml("", "")}
             </div>
@@ -1994,8 +2029,9 @@ function renderShell() {
 
           <div class="group">
             <p class="group-label">Promoción de preventa</p>
-            <p class="hint">Estos ítems se suman al precio. Actívalos para aplicar el descuento de preventa (quedan gratis).</p>
+            <p class="hint">Actívalos para aplicar el descuento de preventa. El departamento baja de ${PRECIO_UF_M2} a ${PRECIO_UF_M2_PROMO} UF/m²; estac./bodega/equip. quedan gratis.</p>
             <div class="fields">
+              <label class="check"><input type="checkbox" name="optDepto" /><span>Pre Venta <small>(−${DESC_DEPTO_LBL} → ${PRECIO_UF_M2_PROMO} UF/m²)</small></span><b id="val-depto"></b></label>
               <label class="check"><input type="checkbox" name="optEstac" /><span>Estacionamiento</span><b id="val-estac"></b></label>
               <label class="check"><input type="checkbox" name="optBodega" /><span>Bodega</span><b id="val-bodega"></b></label>
               <label class="check"><input type="checkbox" name="optEquip" /><span>Equipamiento <small>(encimera, A/A, horno, frigobar)</small></span><b id="val-equip"></b></label>
@@ -2032,6 +2068,7 @@ function renderShell() {
                 <input name="reservaClp" type="number" min="0" step="10000" placeholder="0" />
               </label>
               <p class="hint">Opcionales. Descuento máx ${DESC_MAX}% · balloon máx ${BALLOON_MAX}%. Reserva mínima ${formatMoney(RESERVA_MIN)}; se abona a la cuota inicial.</p>
+              <label class="check"><input type="checkbox" name="incluirPlanes" /><span>Incluir planes de pago por etapa (Habitar) en el PDF e impresión</span></label>
             </div>
           </div>
         </form>
@@ -2143,7 +2180,7 @@ function renderSheet(state, totals) {
     <div class="block">
       <h3>Condiciones comerciales</h3>
       <div class="uf-note">
-        <span>Precio ${PRECIO_UF_M2} UF/m². Se muestran montos en UF y equivalente en pesos.</span>
+        <span></span>
         <strong>1 UF = ${ufLabel}${ufFecha}</strong>
       </div>
       <table class="table">
@@ -2155,37 +2192,28 @@ function renderSheet(state, totals) {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>Departamento${tipo ? ` <span class="soft">(${formatM2(tipo.superficie)} × ${PRECIO_UF_M2} UF)</span>` : ""}</td>
-            <td class="num">${hasPrecio ? formatUf(totals.precioDeptoUf) : "—"}</td>
-            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioDeptoClp) : "—"}</td>
+          <tr class="subtotal">
+            <td>Valor total <span class="soft">(departamento + estacionamiento + bodega + equipamiento)</span></td>
+            <td class="num">${hasPrecio ? formatUf(totals.precioListaUf) : "—"}</td>
+            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioListaClp) : "—"}</td>
           </tr>
           ${
             hasPrecio
-              ? `<tr>
-            <td>Estacionamiento <span class="soft">(${totals.nEstac} × ${OPT_ESTAC_UF} UF)</span></td>
-            <td class="num">${formatUf(totals.estacUf)}</td>
-            <td class="num">${totals.hasUf ? formatMoney(totals.estacClp) : "—"}</td>
-          </tr>
-          <tr>
-            <td>Bodega <span class="soft">(${totals.nBodega} × ${OPT_BODEGA_UF} UF)</span></td>
-            <td class="num">${formatUf(totals.bodegaUf)}</td>
-            <td class="num">${totals.hasUf ? formatMoney(totals.bodegaClp) : "—"}</td>
-          </tr>
-          <tr>
-            <td>Equipamiento <span class="soft">(encimera, A/A, horno, frigobar)</span></td>
-            <td class="num">${formatUf(totals.equipUf)}</td>
-            <td class="num">${totals.hasUf ? formatMoney(totals.equipClp) : "—"}</td>
+              ? [
+                  [totals.optDepto, `departamento (−${DESC_DEPTO_LBL})`, totals.deptoDescUf, totals.deptoDescClp],
+                  [totals.optEstac, "estacionamiento", totals.estacUf, totals.estacClp],
+                  [totals.optBodega, "bodega", totals.bodegaUf, totals.bodegaClp],
+                  [totals.optEquip, "equipamiento", totals.equipUf, totals.equipClp],
+                ]
+                  .filter((r) => r[0] && r[2] > 0)
+                  .map(
+                    (r) => `<tr>
+            <td>Descuento preventa <span class="soft">${r[1]}</span></td>
+            <td class="num">− ${formatUf(r[2])}</td>
+            <td class="num">${totals.hasUf ? "− " + formatMoney(r[3]) : "—"}</td>
           </tr>`
-              : ""
-          }
-          ${
-            totals.hasPromo
-              ? `<tr>
-            <td>Descuento promoción preventa <span class="soft">(${[totals.optEstac ? "estac." : "", totals.optBodega ? "bodega" : "", totals.optEquip ? "equip." : ""].filter(Boolean).join(", ")})</span></td>
-            <td class="num">− ${formatUf(totals.promoUf)}</td>
-            <td class="num">${totals.hasUf ? "− " + formatMoney(totals.promoClp) : "—"}</td>
-          </tr>`
+                  )
+                  .join("")
               : ""
           }
           ${
@@ -2269,6 +2297,43 @@ function renderSheet(state, totals) {
       </div>
     </div>
 
+    ${
+      totals.incluirPlanes && hasPrecio && totals.tipo
+        ? `<div class="block">
+      <h3>Planes de pago por etapa (Habitar)</h3>
+      <div class="uf-note">
+        <span>Valor de la cuota mensual según la etapa de entrega, con la cuota inicial (${formatPct(totals.piePct)})${totals.hasBalloon ? ` y balloon (${formatPct(totals.balloonPct)})` : ""} de esta cotización.</span>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Habitar</th>
+            <th class="num">Entrega</th>
+            <th class="num">Cuotas</th>
+            <th class="num">Cuota mensual UF</th>
+            <th class="num">Cuota mensual $</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${Object.values(HABITARES)
+            .map((h) => {
+              const cUf = planCuotaUf(totals.precioUf, totals.piePct, totals.balloonPct, h.cuotas);
+              const sel = totals.habitar && totals.habitar.id === h.id ? " class=\"highlight\"" : "";
+              return `<tr${sel}>
+            <td>${h.nombre}</td>
+            <td class="num">${h.anioEntrega}</td>
+            <td class="num">${h.cuotas}</td>
+            <td class="num">${formatUf(cUf)}</td>
+            <td class="num">${totals.hasUf ? formatMoney(cUf * totals.uf) : "—"}</td>
+          </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>`
+        : ""
+    }
+
     <div class="block">
       <h3>Condiciones y aclaraciones</h3>
       <ul class="terms">
@@ -2283,7 +2348,7 @@ function renderSheet(state, totals) {
         <li>La cuota inicial podrá pactarse en cuotas según las condiciones que se acuerden en el contrato.</li>
         ${
           totals.hasPromo
-            ? `<li>La promoción de preventa descuenta los ítems seleccionados (estacionamiento, bodega y/o equipamiento), que quedan sin costo para el cliente.</li>`
+            ? `<li>La promoción de preventa aplica los descuentos seleccionados: el departamento a ${PRECIO_UF_M2_PROMO} UF/m² (−${DESC_DEPTO_LBL}) y/o estacionamiento, bodega y equipamiento sin costo para el cliente.</li>`
             : ""
         }
         ${
@@ -2343,7 +2408,7 @@ function readForm(form) {
     }
   }
   // Checkboxes (no aparecen en FormData si están desmarcados)
-  ["optEstac", "optBodega", "optEquip"].forEach((k) => {
+  ["optDepto", "optEstac", "optBodega", "optEquip", "incluirPlanes"].forEach((k) => {
     const el = form.elements.namedItem(k);
     state[k] = !!(el && el.checked);
   });
@@ -2419,13 +2484,15 @@ function buildEmailBody(state, totals) {
     "RESUMEN DE LA COTIZACIÓN",
     `• Tipología: ${tipo.nombre} (${formatM2(tipo.superficie)}) — incluye ${tipo.estacionamientos} estacionamiento(s) y ${tipo.bodegas} bodega(s)`,
     `• Torre / Habitar: ${totals.habitar ? totals.habitar.nombre : "—"} · Entrega estimada: ${totals.anioEntrega || "—"}`,
-    `• Departamento: ${clp(formatUf(totals.precioDeptoUf), formatMoney(totals.precioDeptoClp))}`,
-    `• Estacionamiento (${totals.nEstac}): ${clp(formatUf(totals.estacUf), formatMoney(totals.estacClp))}`,
-    `• Bodega (${totals.nBodega}): ${clp(formatUf(totals.bodegaUf), formatMoney(totals.bodegaClp))}`,
-    `• Equipamiento: ${clp(formatUf(totals.equipUf), formatMoney(totals.equipClp))}`,
-    ...(totals.hasPromo
-      ? [`• Descuento promoción preventa: − ${clp(formatUf(totals.promoUf), formatMoney(totals.promoClp))}`]
-      : []),
+    `• Valor total (departamento + estacionamiento + bodega + equipamiento): ${clp(formatUf(totals.precioListaUf), formatMoney(totals.precioListaClp))}`,
+    ...[
+      [totals.optDepto, `departamento (−${DESC_DEPTO_LBL})`, totals.deptoDescUf, totals.deptoDescClp],
+      [totals.optEstac, "estacionamiento", totals.estacUf, totals.estacClp],
+      [totals.optBodega, "bodega", totals.bodegaUf, totals.bodegaClp],
+      [totals.optEquip, "equipamiento", totals.equipUf, totals.equipClp],
+    ]
+      .filter((r) => r[0] && r[2] > 0)
+      .map((r) => `• Descuento preventa ${r[1]}: − ${clp(formatUf(r[2]), formatMoney(r[3]))}`),
     ...(totals.hasDescuento
       ? [`• Descuento (${formatPct(totals.descPct)}): − ${clp(formatUf(totals.descUf), formatMoney(totals.descClp))}`]
       : []),
@@ -2448,7 +2515,9 @@ function buildEmailBody(state, totals) {
       : "Los montos en pesos se calcularán según el valor UF del día.",
     "Cotización válida por 15 (quince) días corridos a partir de su emisión.",
     "",
-    "Adjunto la cotización y la ficha del departamento en PDF. Quedo atento(a) a sus comentarios.",
+    totals.incluirPlanes
+      ? "Adjunto la cotización (incluye los planes de pago por etapa de entrega) y la ficha del departamento en PDF. Quedo atento(a) a sus comentarios."
+      : "Adjunto la cotización y la ficha del departamento en PDF. Quedo atento(a) a sus comentarios.",
     "",
     "Saludos cordiales,",
     state.ejecutivo ? state.ejecutivo : "",
@@ -2587,6 +2656,9 @@ async function generarPdfBlob(filename) {
     image: { type: "jpeg", quality: PDF_QUALITY },
     html2canvas: { scale: PDF_SCALE, backgroundColor: "#ffffff", useCORS: true },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    // Evita cortar filas/bloques a la mitad cuando el PDF pasa de una página
+    // (p. ej. con la tabla de planes por etapa incluida).
+    pagebreak: { mode: ["css", "legacy"], avoid: ["tr"] },
   };
 
   try {
@@ -2601,7 +2673,7 @@ async function generarPdfBlob(filename) {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       blob = await window.html2pdf().set(opt).from(sheet).outputPdf("blob");
       const paginas = await contarPaginasPdf(blob);
-      if (blob && blob.size >= 80000 && paginas >= 1 && paginas <= 2) break; // válido (1 o 2 págs)
+      if (blob && blob.size >= 80000 && paginas >= 1 && paginas <= 3) break; // válido (1 a 3 págs; los planes por etapa pueden sumar una página)
       console.warn(`PDF intento ${intento}: size=${blob && blob.size}, paginas=${paginas}`);
     }
     return blob;
@@ -2641,7 +2713,7 @@ async function enviarAutomatico(form, state, totals, setStatus) {
     // Red de seguridad: NUNCA enviar un PDF vacío o de más de 1 página
     // (evita que le llegue una cotización en blanco al cliente).
     const paginas = await contarPaginasPdf(pdfBlob);
-    if (!pdfBlob || pdfBlob.size < 80000 || paginas < 1 || paginas > 2) {
+    if (!pdfBlob || pdfBlob.size < 80000 || paginas < 1 || paginas > 3) {
       console.warn("PDF inválido, no se envía", {
         size: pdfBlob && pdfBlob.size,
         paginas,
@@ -2710,6 +2782,7 @@ function abrirPlanes(form, aplicar) {
   let piePct = Math.min(100, Math.max(10, Number(st.piePct) || PIE_STD));
   let balPct = Math.min(BALLOON_MAX, Math.max(0, Number(st.balloonPct) || 0));
   let capClp = 1000000;
+  let optDepto = !!st.optDepto;
   let optEstac = !!st.optEstac;
   let optBodega = !!st.optBodega;
   let optEquip = !!st.optEquip;
@@ -2738,6 +2811,7 @@ function abrirPlanes(form, aplicar) {
       </div>
       <div class="planes-promo">
         <span class="planes-promo-lbl">Promo preventa (descuenta del precio):</span>
+        <label class="pl-chk"><input type="checkbox" id="pl-depto" /> Pre Venta −${DESC_DEPTO_LBL} <b id="pl-depto-v"></b></label>
         <label class="pl-chk"><input type="checkbox" id="pl-estac" /> Estac. <b id="pl-estac-v"></b></label>
         <label class="pl-chk"><input type="checkbox" id="pl-bodega" /> Bodega <b id="pl-bodega-v"></b></label>
         <label class="pl-chk"><input type="checkbox" id="pl-equip" /> Equip. <b id="pl-equip-v"></b></label>
@@ -2796,20 +2870,25 @@ function abrirPlanes(form, aplicar) {
     const estacUf = tipo.estacionamientos * OPT_ESTAC_UF;
     const bodegaUf = tipo.bodegas * OPT_BODEGA_UF;
     const equipUf = OPT_EQUIP_UF;
-    const promoUf = (optEstac ? estacUf : 0) + (optBodega ? bodegaUf : 0) + (optEquip ? equipUf : 0);
+    const deptoDescUf = tipo.superficie * (PRECIO_UF_M2 - PRECIO_UF_M2_PROMO);
+    const promoUf =
+      (optDepto ? deptoDescUf : 0) +
+      (optEstac ? estacUf : 0) +
+      (optBodega ? bodegaUf : 0) +
+      (optEquip ? equipUf : 0);
     const precioLista = tipo.superficie * PRECIO_UF_M2 + estacUf + bodegaUf + equipUf;
-    return { estacUf, bodegaUf, equipUf, promoUf, precioLista, precio: precioLista - promoUf };
+    return { estacUf, bodegaUf, equipUf, deptoDescUf, promoUf, precioLista, precio: precioLista - promoUf };
   };
 
   function render() {
     const tipo = TIPOLOGIAS[q("#pl-tipo").value];
     const anio = Number(q("#pl-anio").value);
     const P = calcPrecio(tipo);
-    const precioUf = P.precio;
-    const pieUf = precioUf * (piePct / 100);
-    const saldo = precioUf * (1 - piePct / 100);
-    const balUf = precioUf * (balPct / 100);
-    const base = Math.max(0, saldo - balUf);
+    const precioUf = excelRound(P.precio, 2);
+    const pieUf = excelRound(precioUf * (piePct / 100), 2);
+    const saldo = excelRound(precioUf - pieUf, 2);
+    let balUf = excelRound(precioUf * (balPct / 100), 2);
+    if (balUf > saldo) balUf = saldo;
     const capUf = uf > 0 ? capClp / uf : 0;
 
     q("#pl-pie-pct").textContent = pctTxt(piePct);
@@ -2818,9 +2897,11 @@ function abrirPlanes(form, aplicar) {
     q("#pl-sub").textContent = `${tipo.nombre} · ${formatM2(tipo.superficie)} · ${fmtMon(precioUf)}${P.promoUf > 0 ? ` (promo −${fmtMon(P.promoUf)})` : ""} · pie ${fmtMon(pieUf)}${balPct ? ` · balloon ${fmtMon(balUf)}` : ""}`;
 
     // Casillas de la promo y sus valores (× cantidad de la tipología)
+    if (!foco(q("#pl-depto"))) q("#pl-depto").checked = optDepto;
     if (!foco(q("#pl-estac"))) q("#pl-estac").checked = optEstac;
     if (!foco(q("#pl-bodega"))) q("#pl-bodega").checked = optBodega;
     if (!foco(q("#pl-equip"))) q("#pl-equip").checked = optEquip;
+    q("#pl-depto-v").textContent = fmtMon(P.deptoDescUf);
     q("#pl-estac-v").textContent = fmtMon(P.estacUf);
     q("#pl-bodega-v").textContent = fmtMon(P.bodegaUf);
     q("#pl-equip-v").textContent = fmtMon(P.equipUf);
@@ -2844,7 +2925,7 @@ function abrirPlanes(form, aplicar) {
     const im = planesMoneda === "uf" ? "decimal" : "numeric";
     [pieAmt, balAmt, capAmt].forEach((el) => (el.inputMode = im));
 
-    const data = Object.values(HABITARES).map((h) => ({ n: h.id, e: h.anioEntrega, c: h.cuotas, uf: base / h.cuotas }));
+    const data = Object.values(HABITARES).map((h) => ({ n: h.id, e: h.anioEntrega, c: h.cuotas, uf: planCuotaUf(precioUf, piePct, balPct, h.cuotas) }));
     data.sort((a, b) => b.uf - a.uf);
     const maxUf = data[0].uf || 1;
 
@@ -2876,6 +2957,7 @@ function abrirPlanes(form, aplicar) {
         form.elements.namedItem("habitarId").value = btn.dataset.hab;
         form.elements.namedItem("piePct").value = String(piePct);
         form.elements.namedItem("balloonPct").value = balPct > 0 ? String(balPct) : "";
+        form.elements.namedItem("optDepto").checked = optDepto;
         form.elements.namedItem("optEstac").checked = optEstac;
         form.elements.namedItem("optBodega").checked = optBodega;
         form.elements.namedItem("optEquip").checked = optEquip;
@@ -2910,6 +2992,7 @@ function abrirPlanes(form, aplicar) {
 
   q("#pl-tipo").addEventListener("input", render);
   q("#pl-anio").addEventListener("input", render);
+  q("#pl-depto").addEventListener("change", () => { optDepto = q("#pl-depto").checked; render(); });
   q("#pl-estac").addEventListener("change", () => { optEstac = q("#pl-estac").checked; render(); });
   q("#pl-bodega").addEventListener("change", () => { optBodega = q("#pl-bodega").checked; render(); });
   q("#pl-equip").addEventListener("change", () => { optEquip = q("#pl-equip").checked; render(); });
@@ -2981,6 +3064,7 @@ function boot() {
       const el = document.querySelector(id);
       if (el) el.textContent = uf > 0 ? formatUf(uf, 0) : "—";
     };
+    setVal("#val-depto", totals.deptoDescUf);
     setVal("#val-estac", totals.estacUf);
     setVal("#val-bodega", totals.bodegaUf);
     setVal("#val-equip", totals.equipUf);
