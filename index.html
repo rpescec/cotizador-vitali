@@ -1750,6 +1750,19 @@ function precioFromTipologia(tipo) {
   return excelRound(tipo.superficie * PRECIO_UF_M2, 2);
 }
 
+/** Valor total (full) de una tipología: departamento (99 UF/m²) + estacionamiento(s)
+ *  + bodega(s) + equipamiento. Es el valor de lista que se muestra en la tarjeta. */
+function valorTotalTipologia(tipo) {
+  if (!tipo) return 0;
+  return excelRound(
+    tipo.superficie * PRECIO_UF_M2 +
+      tipo.estacionamientos * OPT_ESTAC_UF +
+      tipo.bodegas * OPT_BODEGA_UF +
+      OPT_EQUIP_UF,
+    2
+  );
+}
+
 /** Valor de la cuota mensual (UF) para un precio, % de pie, % de balloon y N de cuotas.
  *  Usa exactamente los mismos pasos y redondeos que calc(), para que la cotización
  *  y el simulador "planes por capacidad" muestren SIEMPRE el mismo valor. */
@@ -1902,7 +1915,7 @@ function tipologiasHtml(selectedId, ufValue) {
   const hasUf = uf > 0;
   return Object.values(TIPOLOGIAS)
     .map((t) => {
-      const precio = precioFromTipologia(t);
+      const precio = valorTotalTipologia(t);
       const active = t.id === selectedId ? "is-active" : "";
       return `
         <button type="button" class="tipo-card ${active}" data-tipo="${t.id}" aria-pressed="${t.id === selectedId}">
