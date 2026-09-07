@@ -1599,7 +1599,7 @@ const DEFAULTS = {
   descPct: "",
   balloonPct: "",
   reservaClp: "",
-  optDepto: true,
+  optDepto: false,
   optEstac: false,
   optBodega: false,
   optEquip: false,
@@ -2350,7 +2350,7 @@ function renderSheet(state, totals) {
     <div class="block">
       <h3>Condiciones y aclaraciones</h3>
       <ul class="terms">
-        <li>Cotización válida por 15 (quince) días corridos a partir de la fecha de emisión.</li>
+        <li>Cotización válida por 7 (siete) días corridos a partir de la fecha de emisión.</li>
         <li>El año de entrega y el plazo de financiamiento se definen según la etapa Habitar seleccionada (Habitar 1 = 2032 / 6 años; Habitar 14 = 2046 / 20 años).</li>
         <li>Los montos en pesos ($) se calculan con el valor UF del día indicado (fuente mindicador.cl) y son solo referenciales.</li>
         <li>La tipología incluye la cantidad de estacionamientos y bodegas indicada.</li>
@@ -2526,7 +2526,7 @@ function buildEmailBody(state, totals) {
     totals.hasUf
       ? `Valores calculados con 1 UF = ${formatMoney(totals.uf)}. Los montos en pesos son referenciales.`
       : "Los montos en pesos se calcularán según el valor UF del día.",
-    "Cotización válida por 15 (quince) días corridos a partir de su emisión.",
+    "Cotización válida por 7 (siete) días corridos a partir de su emisión.",
     "",
     totals.incluirPlanes
       ? "Adjunto la cotización (incluye los planes de pago por etapa de entrega) y la ficha del departamento en PDF. Quedo atento(a) a sus comentarios."
