@@ -1484,10 +1484,11 @@ input[readonly] {
 const PRECIO_UF_M2 = 99; // valor de lista por m²
 const PRECIO_UF_M2_PROMO = 90; // valor por m² con el descuento de preventa aplicado
 const DESC_DEPTO_LBL = "9,09%"; // etiqueta del descuento de departamento (99 → 90)
-const PIE_MIN = 10;
+const PIE_MIN = 1; // mínimo del % de cuota inicial en el input (el piso real es en $)
+const PIE_MIN_CLP = 5000000; // piso absoluto de la cuota inicial en pesos
 const PIE_STD = 15;
 const DESC_MAX = 2; // tope de descuento (%)
-const BALLOON_MAX = 35; // tope de cuota final / balloon (%)
+const BALLOON_MAX = 30; // tope de cuota final / balloon (%)
 const RESERVA_MIN = 500000; // reserva mínima en pesos (cuando se usa)
 
 // Ítems que se suman al valor de la unidad; al seleccionarlos se descuentan como
@@ -1821,11 +1822,15 @@ function calc(state) {
   if (!Number.isFinite(piePctNum)) piePctNum = PIE_STD;
   if (piePctNum < PIE_MIN) piePctNum = PIE_MIN;
   if (piePctNum > 100) piePctNum = 100;
-  const piePct = piePctNum / 100;
   const uf = Number(state.uf) || 0;
   const plazo = habitar ? habitar.plazoAnios : 0;
   const cuotas = habitar ? habitar.cuotas : 0;
-  const pieUf = excelRound(precio * piePct, 2);
+  let pieUf = excelRound(precio * (piePctNum / 100), 2);
+  // Piso absoluto de la cuota inicial: nunca menos de $5.000.000 (ajusta el % mostrado)
+  if (uf > 0 && precio > 0 && pieUf * uf < PIE_MIN_CLP) {
+    pieUf = excelRound(PIE_MIN_CLP / uf, 2);
+    piePctNum = excelRound((pieUf / precio) * 100, 2);
+  }
   const saldo = excelRound(precio - pieUf, 2);
 
   // Reserva (monto fijo en pesos) que se abona a la cuota inicial
@@ -2063,11 +2068,10 @@ function renderShell() {
                 <div class="pie-row">
                   <input name="piePct" id="piePct" type="number" min="${PIE_MIN}" max="100" step="0.1" />
                   <div class="pie-presets">
-                    <button type="button" class="chip" data-pie="${PIE_MIN}">Mín. ${PIE_MIN}%</button>
                     <button type="button" class="chip is-std" data-pie="${PIE_STD}">Std ${PIE_STD}%</button>
                   </div>
                 </div>
-                <p class="hint">Mínimo ${PIE_MIN}% · estándar ${PIE_STD}%</p>
+                <p class="hint">Cuota inicial mínima ${formatMoney(PIE_MIN_CLP)} · estándar ${PIE_STD}%</p>
               </div>
               <div class="fields two">
                 <label>Descuento (%)
@@ -2792,7 +2796,7 @@ function abrirPlanes(form, aplicar) {
     anios.map((y) => `<option value="${y}">Hasta ${y}</option>`).join("");
 
   // Estado canónico (independiente de la moneda mostrada)
-  let piePct = Math.min(100, Math.max(10, Number(st.piePct) || PIE_STD));
+  let piePct = Math.min(100, Math.max(PIE_MIN, Number(st.piePct) || PIE_STD));
   let balPct = Math.min(BALLOON_MAX, Math.max(0, Number(st.balloonPct) || 0));
   let capClp = 1000000;
   let optDepto = !!st.optDepto;
@@ -2816,7 +2820,7 @@ function abrirPlanes(form, aplicar) {
         <label>Tipo de unidad<select id="pl-tipo">${tiposOpts}</select></label>
         <label>Año que lo necesita<select id="pl-anio">${aniosOpts}</select></label>
         <label>Pago inicial <span class="pl-pct" id="pl-pie-pct"></span>
-          <div class="pl-inline"><input type="range" id="pl-pie" min="10" max="60" step="1" /><input type="text" inputmode="numeric" class="pl-amt" id="pl-pie-amt" /></div>
+          <div class="pl-inline"><input type="range" id="pl-pie" min="${PIE_MIN}" max="60" step="1" /><input type="text" inputmode="numeric" class="pl-amt" id="pl-pie-amt" /></div>
         </label>
         <label>Cuota final / Balloon <span class="pl-pct" id="pl-bal-pct"></span>
           <div class="pl-inline"><input type="range" id="pl-bal" min="0" max="${BALLOON_MAX}" step="1" /><input type="text" inputmode="numeric" class="pl-amt" id="pl-bal-amt" /></div>
@@ -2898,7 +2902,13 @@ function abrirPlanes(form, aplicar) {
     const anio = Number(q("#pl-anio").value);
     const P = calcPrecio(tipo);
     const precioUf = excelRound(P.precio, 2);
-    const pieUf = excelRound(precioUf * (piePct / 100), 2);
+    let pieUf = excelRound(precioUf * (piePct / 100), 2);
+    let piePctEff = piePct;
+    // Piso absoluto de la cuota inicial: nunca menos de $5.000.000
+    if (uf > 0 && precioUf > 0 && pieUf * uf < PIE_MIN_CLP) {
+      pieUf = excelRound(PIE_MIN_CLP / uf, 2);
+      piePctEff = excelRound((pieUf / precioUf) * 100, 2);
+    }
     const saldo = excelRound(precioUf - pieUf, 2);
     let balUf = excelRound(precioUf * (balPct / 100), 2);
     if (balUf > saldo) balUf = saldo;
@@ -2938,7 +2948,7 @@ function abrirPlanes(form, aplicar) {
     const im = planesMoneda === "uf" ? "decimal" : "numeric";
     [pieAmt, balAmt, capAmt].forEach((el) => (el.inputMode = im));
 
-    const data = Object.values(HABITARES).map((h) => ({ n: h.id, e: h.anioEntrega, c: h.cuotas, uf: planCuotaUf(precioUf, piePct, balPct, h.cuotas) }));
+    const data = Object.values(HABITARES).map((h) => ({ n: h.id, e: h.anioEntrega, c: h.cuotas, uf: planCuotaUf(precioUf, piePctEff, balPct, h.cuotas) }));
     data.sort((a, b) => b.uf - a.uf);
     const maxUf = data[0].uf || 1;
 
