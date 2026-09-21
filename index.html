@@ -2673,9 +2673,10 @@ async function generarPdfBlob(filename) {
     image: { type: "jpeg", quality: PDF_QUALITY },
     html2canvas: { scale: PDF_SCALE, backgroundColor: "#ffffff", useCORS: true },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    // Evita cortar filas/bloques a la mitad cuando el PDF pasa de una página
-    // (p. ej. con la tabla de planes por etapa incluida).
-    pagebreak: { mode: ["css", "legacy"], avoid: ["tr"] },
+    // Evita cortar CUALQUIER elemento a la mitad cuando el PDF pasa de una
+    // página (filas, bloques y la lista de condiciones). 'avoid-all' empuja el
+    // elemento completo a la página siguiente en vez de partirlo.
+    pagebreak: { mode: ["avoid-all", "css", "legacy"], avoid: ["tr", ".block", ".terms li"] },
   };
 
   try {
