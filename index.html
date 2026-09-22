@@ -666,9 +666,34 @@ input[readonly] {
 
 .pie-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr 1fr auto;
   gap: 8px;
   align-items: center;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.pie-range {
+  width: 100%;
+  accent-color: var(--gold);
+  cursor: pointer;
+  margin: 2px 0 8px;
+}
+
+.pie-num {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pie-num input {
+  width: 100%;
+  min-width: 0;
 }
 
 .pie-presets {
@@ -1484,8 +1509,7 @@ input[readonly] {
 const PRECIO_UF_M2 = 99; // valor de lista por m²
 const PRECIO_UF_M2_PROMO = 90; // valor por m² con el descuento de preventa aplicado
 const DESC_DEPTO_LBL = "9,09%"; // etiqueta del descuento de departamento (99 → 90)
-const PIE_MIN = 1; // mínimo del % de cuota inicial en el input (el piso real es en $)
-const PIE_MIN_CLP = 5000000; // piso absoluto de la cuota inicial en pesos
+const PIE_MIN = 5; // mínimo del % de cuota inicial
 const PIE_STD = 15;
 const DESC_MAX = 2; // tope de descuento (%)
 const BALLOON_MAX = 30; // tope de cuota final / balloon (%)
@@ -1595,6 +1619,7 @@ const DEFAULTS = {
   tipologiaId: "",
   nCotizacion: "",
   fecha: todayInputDate(),
+  formaPago: "credito",
   uf: "",
   piePct: PIE_STD,
   descPct: "",
@@ -1818,24 +1843,23 @@ function calc(state) {
   if (balloonPctNum < 0) balloonPctNum = 0;
   if (balloonPctNum > BALLOON_MAX) balloonPctNum = BALLOON_MAX;
 
+  // Forma de pago: crédito directo (por defecto) o contado (paga el precio completo)
+  const esContado = state.formaPago === "contado";
+
   let piePctNum = Number(state.piePct);
   if (!Number.isFinite(piePctNum)) piePctNum = PIE_STD;
   if (piePctNum < PIE_MIN) piePctNum = PIE_MIN;
   if (piePctNum > 100) piePctNum = 100;
+  if (esContado) piePctNum = 100; // al contado se paga el 100%
   const uf = Number(state.uf) || 0;
-  const plazo = habitar ? habitar.plazoAnios : 0;
-  const cuotas = habitar ? habitar.cuotas : 0;
-  let pieUf = excelRound(precio * (piePctNum / 100), 2);
-  // Piso absoluto de la cuota inicial: nunca menos de $5.000.000 (ajusta el % mostrado)
-  if (uf > 0 && precio > 0 && pieUf * uf < PIE_MIN_CLP) {
-    pieUf = excelRound(PIE_MIN_CLP / uf, 2);
-    piePctNum = excelRound((pieUf / precio) * 100, 2);
-  }
+  const plazo = esContado ? 0 : habitar ? habitar.plazoAnios : 0;
+  const cuotas = esContado ? 0 : habitar ? habitar.cuotas : 0;
+  const pieUf = excelRound(precio * (piePctNum / 100), 2);
   const saldo = excelRound(precio - pieUf, 2);
 
-  // Reserva (monto fijo en pesos) que se abona a la cuota inicial
+  // Reserva (monto fijo en pesos) que se abona a la cuota inicial (no aplica al contado)
   const pieClp = pieUf * uf;
-  let reservaClp = Number(state.reservaClp) || 0;
+  let reservaClp = esContado ? 0 : Number(state.reservaClp) || 0;
   if (reservaClp < 0) reservaClp = 0;
   if (uf > 0 && reservaClp > pieClp) reservaClp = pieClp; // no puede exceder la cuota inicial
   const reservaUf = uf > 0 ? excelRound(reservaClp / uf, 2) : 0;
@@ -1843,7 +1867,8 @@ function calc(state) {
   const saldoPieClp = pieClp - reservaClp;
   const hasReserva = reservaClp > 0;
 
-  // El balloon se descuenta del saldo y se paga al final
+  // El balloon se descuenta del saldo y se paga al final (no aplica al contado)
+  if (esContado) balloonPctNum = 0;
   let balloonUf = excelRound(precio * (balloonPctNum / 100), 2);
   if (balloonUf > saldo) balloonUf = saldo; // no puede exceder el saldo
   const saldoEnCuotas = excelRound(saldo - balloonUf, 2);
@@ -1903,6 +1928,7 @@ function calc(state) {
     uf,
     precioM2: PRECIO_UF_M2,
     hasUf: uf > 0,
+    esContado,
   };
 }
 
@@ -1913,6 +1939,17 @@ function field(name, label, type = "text", extra = "") {
       <input name="${name}" type="${type}" ${extra} />
     </label>
   `;
+}
+
+/** Formatea un monto en pesos con separador de miles (sin símbolo), p. ej. 5000000 → "5.000.000" */
+function fmtPesos(n) {
+  const v = Math.round(Number(n) || 0);
+  return v > 0 ? new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(v) : "";
+}
+/** Convierte un texto con separadores a número entero de pesos */
+function parsePesos(str) {
+  const n = Number(String(str).replace(/[^\d]/g, ""));
+  return Number.isFinite(n) ? n : 0;
 }
 
 function tipologiasHtml(selectedId, ufValue) {
@@ -2063,29 +2100,37 @@ function renderShell() {
                 ${field("nCotizacion", "N° de cotización", "text", "readonly")}
                 ${field("fecha", "Fecha de emisión", "date")}
               </div>
-              <div>
-                <label for="piePct">Cuota inicial (%)</label>
-                <div class="pie-row">
-                  <input name="piePct" id="piePct" type="number" min="${PIE_MIN}" max="100" step="0.1" />
-                  <div class="pie-presets">
+              <label>Forma de pago
+                <select name="formaPago" id="formaPago">
+                  <option value="credito">Crédito directo</option>
+                  <option value="contado">Contado</option>
+                </select>
+              </label>
+              <div id="financiamiento">
+                <div>
+                  <label for="piePct">Cuota inicial</label>
+                  <input type="range" name="pieRange" id="pieRange" class="pie-range" min="${PIE_MIN}" max="100" step="1" />
+                  <div class="pie-row">
+                    <label class="pie-num">%<input name="piePct" id="piePct" type="number" min="${PIE_MIN}" max="100" step="0.1" /></label>
+                    <label class="pie-num pie-amt-wrap">$<input id="pieAmt" type="text" inputmode="numeric" placeholder="Monto" /></label>
                     <button type="button" class="chip is-std" data-pie="${PIE_STD}">Std ${PIE_STD}%</button>
                   </div>
+                  <p class="hint">Mínimo ${PIE_MIN}% · estándar ${PIE_STD}%. Puedes escribir el % o el monto en $.</p>
                 </div>
-                <p class="hint">Cuota inicial mínima ${formatMoney(PIE_MIN_CLP)} · estándar ${PIE_STD}%</p>
-              </div>
-              <div class="fields two">
-                <label>Descuento (%)
-                  <input name="descPct" type="number" min="0" max="${DESC_MAX}" step="0.1" placeholder="0" />
+                <div class="fields two">
+                  <label>Descuento (%)
+                    <input name="descPct" type="number" min="0" max="${DESC_MAX}" step="0.1" placeholder="0" />
+                  </label>
+                  <label>Cuota final / Balloon (%)
+                    <input name="balloonPct" type="number" min="0" max="${BALLOON_MAX}" step="0.1" placeholder="0" />
+                  </label>
+                </div>
+                <label>Reserva ($)
+                  <input name="reservaClp" type="number" min="0" step="10000" placeholder="0" />
                 </label>
-                <label>Cuota final / Balloon (%)
-                  <input name="balloonPct" type="number" min="0" max="${BALLOON_MAX}" step="0.1" placeholder="0" />
-                </label>
+                <p class="hint">Opcionales. Descuento máx ${DESC_MAX}% · balloon máx ${BALLOON_MAX}%. Reserva mínima ${formatMoney(RESERVA_MIN)}; se abona a la cuota inicial.</p>
+                <label class="check"><input type="checkbox" name="incluirPlanes" /><span>Incluir planes de pago por etapa (Habitar) en el PDF e impresión</span></label>
               </div>
-              <label>Reserva ($)
-                <input name="reservaClp" type="number" min="0" step="10000" placeholder="0" />
-              </label>
-              <p class="hint">Opcionales. Descuento máx ${DESC_MAX}% · balloon máx ${BALLOON_MAX}%. Reserva mínima ${formatMoney(RESERVA_MIN)}; se abona a la cuota inicial.</p>
-              <label class="check"><input type="checkbox" name="incluirPlanes" /><span>Incluir planes de pago por etapa (Habitar) en el PDF e impresión</span></label>
             </div>
           </div>
         </form>
@@ -2178,7 +2223,7 @@ function renderSheet(state, totals) {
         ${kv("Teléfono", state.telefono)}
         ${kv("Correo electrónico", state.correo)}
         ${kv("Ejecutivo(a) de venta", state.ejecutivo)}
-        ${kv("Forma de pago", "Crédito directo")}
+        ${kv("Forma de pago", totals.esContado ? "Contado" : "Crédito directo")}
       </div>
     </div>
 
@@ -2247,7 +2292,14 @@ function renderSheet(state, totals) {
             <td class="num">${hasPrecio ? formatUf(totals.precioUf) : "—"}</td>
             <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioClp) : "—"}</td>
           </tr>
-          <tr>
+          ${
+            totals.esContado
+              ? `<tr class="highlight">
+            <td>Total a pagar (al contado)</td>
+            <td class="num">${hasPrecio ? formatUf(totals.precioUf) : "—"}</td>
+            <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.precioClp) : "—"}</td>
+          </tr>`
+              : `<tr>
             <td>Cuota inicial <span class="soft">(${formatPct(totals.piePct)})</span></td>
             <td class="num">${hasPrecio ? formatUf(totals.pieUf) : "—"}</td>
             <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.pieClp) : "—"}</td>
@@ -2270,12 +2322,16 @@ function renderSheet(state, totals) {
             <td>Saldo a financiar</td>
             <td class="num">${hasPrecio ? formatUf(totals.saldo) : "—"}</td>
             <td class="num">${hasPrecio && totals.hasUf ? formatMoney(totals.saldoClp) : "—"}</td>
-          </tr>
+          </tr>`
+          }
         </tbody>
       </table>
     </div>
 
-    <div class="block">
+    ${
+      totals.esContado
+        ? ""
+        : `<div class="block">
       <h3>Plan de pago del saldo a financiar</h3>
       <table class="table">
         <thead>
@@ -2312,10 +2368,11 @@ function renderSheet(state, totals) {
             : "—"
         )}
       </div>
-    </div>
+    </div>`
+    }
 
     ${
-      totals.incluirPlanes && hasPrecio && totals.tipo
+      totals.incluirPlanes && hasPrecio && totals.tipo && !totals.esContado
         ? `<div class="block">
       <h3>Planes de pago por etapa (Habitar)</h3>
       <div class="uf-note">
@@ -2513,19 +2570,24 @@ function buildEmailBody(state, totals) {
     ...(totals.hasDescuento
       ? [`• Descuento (${formatPct(totals.descPct)}): − ${clp(formatUf(totals.descUf), formatMoney(totals.descClp))}`]
       : []),
+    `• Forma de pago: ${totals.esContado ? "Contado" : "Crédito directo"}`,
     `• Precio de venta: ${clp(formatUf(totals.precioUf), formatMoney(totals.precioClp))}`,
-    `• Cuota inicial (${formatPct(totals.piePct)}): ${clp(formatUf(totals.pieUf), formatMoney(totals.pieClp))}`,
-    ...(totals.hasReserva
-      ? [
-          `• Reserva (se abona a la cuota inicial): ${clp(formatUf(totals.reservaUf), formatMoney(totals.reservaClp))}`,
-          `• Saldo cuota inicial: ${clp(formatUf(totals.saldoPieUf), formatMoney(totals.saldoPieClp))}`,
-        ]
-      : []),
-    `• Saldo a financiar: ${clp(formatUf(totals.saldo), formatMoney(totals.saldoClp))}`,
-    `• Plan de pago: ${totals.cuotas} cuotas mensuales de ${clp(formatUf(totals.cuotaUf), formatMoney(totals.cuotaClp))}`,
-    ...(totals.hasBalloon
-      ? [`• Cuota final (balloon) (${formatPct(totals.balloonPct)}): ${clp(formatUf(totals.balloonUf), formatMoney(totals.balloonClp))}`]
-      : []),
+    ...(totals.esContado
+      ? [`• Total a pagar (al contado): ${clp(formatUf(totals.precioUf), formatMoney(totals.precioClp))}`]
+      : [
+          `• Cuota inicial (${formatPct(totals.piePct)}): ${clp(formatUf(totals.pieUf), formatMoney(totals.pieClp))}`,
+          ...(totals.hasReserva
+            ? [
+                `• Reserva (se abona a la cuota inicial): ${clp(formatUf(totals.reservaUf), formatMoney(totals.reservaClp))}`,
+                `• Saldo cuota inicial: ${clp(formatUf(totals.saldoPieUf), formatMoney(totals.saldoPieClp))}`,
+              ]
+            : []),
+          `• Saldo a financiar: ${clp(formatUf(totals.saldo), formatMoney(totals.saldoClp))}`,
+          `• Plan de pago: ${totals.cuotas} cuotas mensuales de ${clp(formatUf(totals.cuotaUf), formatMoney(totals.cuotaClp))}`,
+          ...(totals.hasBalloon
+            ? [`• Cuota final (balloon) (${formatPct(totals.balloonPct)}): ${clp(formatUf(totals.balloonUf), formatMoney(totals.balloonClp))}`]
+            : []),
+        ]),
     "",
     totals.hasUf
       ? `Valores calculados con 1 UF = ${formatMoney(totals.uf)}. Los montos en pesos son referenciales.`
@@ -3092,6 +3154,17 @@ function boot() {
     setVal("#val-estac", totals.estacUf);
     setVal("#val-bodega", totals.bodegaUf);
     setVal("#val-equip", totals.equipUf);
+
+    // Mostrar/ocultar el financiamiento según la forma de pago
+    const fin = document.querySelector("#financiamiento");
+    if (fin) fin.hidden = totals.esContado;
+
+    // Sincronizar la barra y el monto de la cuota inicial con el % actual
+    const rangeEl = document.querySelector("#pieRange");
+    const amtEl = document.querySelector("#pieAmt");
+    if (rangeEl && document.activeElement !== rangeEl) rangeEl.value = String(Math.round(totals.piePct));
+    if (amtEl && document.activeElement !== amtEl) amtEl.value = totals.hasUf ? fmtPesos(totals.pieClp) : "";
+
     renderSheet(state, totals);
   };
 
@@ -3100,7 +3173,7 @@ function boot() {
   const pieEl = form.elements.namedItem("piePct");
   const reservaEl = form.elements.namedItem("reservaClp");
 
-  // La cuota inicial se escribe libre; se ajusta al rango [10, 100] al salir del campo.
+  // La cuota inicial se escribe libre; se ajusta al rango [PIE_MIN, 100] al salir del campo.
   pieEl.addEventListener("change", () => {
     let v = pieEl.value === "" ? PIE_STD : Number(pieEl.value);
     if (!Number.isFinite(v)) v = PIE_STD;
@@ -3109,6 +3182,30 @@ function boot() {
     pieEl.value = String(v);
     refresh();
   });
+
+  // Barra (slider): al moverla, actualiza el % y el resto
+  const pieRangeEl = document.querySelector("#pieRange");
+  if (pieRangeEl) {
+    pieRangeEl.addEventListener("input", () => {
+      pieEl.value = pieRangeEl.value;
+      refresh();
+    });
+  }
+
+  // Monto en $: al escribirlo, calcula el % que corresponde (según el precio) y actualiza la barra
+  const pieAmtEl = document.querySelector("#pieAmt");
+  if (pieAmtEl) {
+    pieAmtEl.addEventListener("input", () => {
+      const t = calc(readForm(form));
+      if (t.precioClp > 0) {
+        let pct = (parsePesos(pieAmtEl.value) / t.precioClp) * 100;
+        if (pct < PIE_MIN) pct = PIE_MIN;
+        if (pct > 100) pct = 100;
+        pieEl.value = String(excelRound(pct, 1));
+      }
+      refresh();
+    });
+  }
 
   descEl.addEventListener("change", () => {
     if (descEl.value === "") return refresh();
