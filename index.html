@@ -2965,13 +2965,8 @@ function abrirPlanes(form, aplicar) {
     const anio = Number(q("#pl-anio").value);
     const P = calcPrecio(tipo);
     const precioUf = excelRound(P.precio, 2);
-    let pieUf = excelRound(precioUf * (piePct / 100), 2);
-    let piePctEff = piePct;
-    // Piso absoluto de la cuota inicial: nunca menos de $5.000.000
-    if (uf > 0 && precioUf > 0 && pieUf * uf < PIE_MIN_CLP) {
-      pieUf = excelRound(PIE_MIN_CLP / uf, 2);
-      piePctEff = excelRound((pieUf / precioUf) * 100, 2);
-    }
+    const pieUf = excelRound(precioUf * (piePct / 100), 2);
+    const piePctEff = piePct;
     const saldo = excelRound(precioUf - pieUf, 2);
     let balUf = excelRound(precioUf * (balPct / 100), 2);
     if (balUf > saldo) balUf = saldo;
