@@ -1581,9 +1581,9 @@ const TIPOLOGIAS = {
 
 const COT_STORAGE_KEY = "vs-cotizador-correlativo";
 
-/** Habitar 1 → 2032 / 6 años / 72 cuotas … Habitar 14 → 2046 / 20 años / 240 cuotas.
- *  Del 1 al 10 siguen el patrón (entrega = 2031+n, plazo = 5+n). Las torres 11, 12
- *  y 14 se definen aparte (la 13 no se construye). Plazo = año de entrega − 2026. */
+/** Habitar 1 → 2032 / 6 años / 72 cuotas … Habitar 12 → 2044 / 18 años / 216 cuotas.
+ *  Del 1 al 10 siguen el patrón (entrega = 2031+n, plazo = 5+n). Las torres 11 y 12
+ *  se definen aparte. Plazo = año de entrega − 2026. */
 const HABITARES = {
   ...Object.fromEntries(
     Array.from({ length: 10 }, (_, i) => {
@@ -1603,7 +1603,6 @@ const HABITARES = {
   ),
   "11": { id: "11", nombre: "Habitar 11", anioEntrega: 2042, plazoAnios: 16, cuotas: 192 },
   "12": { id: "12", nombre: "Habitar 12", anioEntrega: 2044, plazoAnios: 18, cuotas: 216 },
-  "14": { id: "14", nombre: "Habitar 14", anioEntrega: 2046, plazoAnios: 20, cuotas: 240 },
 };
 
 const DEFAULTS = {
@@ -2078,7 +2077,7 @@ function renderShell() {
                 ${field("anioEntrega", "Año de entrega", "text", "readonly")}
                 ${field("plazoAnios", "Plazo del crédito (años)", "text", "readonly")}
               </div>
-              <p class="hint" id="habitar-hint">Habitar 1 = 2032 / 6 años / 72 cuotas · Habitar 14 = 2046 / 20 años / 240 cuotas</p>
+              <p class="hint" id="habitar-hint">Habitar 1 = 2032 / 6 años / 72 cuotas · Habitar 12 = 2044 / 18 años / 216 cuotas</p>
             </div>
           </div>
 
@@ -2183,7 +2182,7 @@ function updateHabitarUI(form) {
   if (hint) {
     hint.textContent = habitar
       ? `${habitar.nombre}: entrega ${habitar.anioEntrega} · ${habitar.plazoAnios} años · ${habitar.cuotas} cuotas mensuales`
-      : "Habitar 1 = 2032 / 6 años / 72 cuotas · Habitar 14 = 2046 / 20 años / 240 cuotas";
+      : "Habitar 1 = 2032 / 6 años / 72 cuotas · Habitar 12 = 2044 / 18 años / 216 cuotas";
   }
 }
 
@@ -2412,7 +2411,7 @@ function renderSheet(state, totals) {
       <h3>Condiciones y aclaraciones</h3>
       <ul class="terms">
         <li>Cotización válida por 7 (siete) días corridos a partir de la fecha de emisión.</li>
-        <li>El año de entrega y el plazo de financiamiento se definen según la etapa Habitar seleccionada (Habitar 1 = 2032 / 6 años; Habitar 14 = 2046 / 20 años).</li>
+        <li>El año de entrega y el plazo de financiamiento se definen según la etapa Habitar seleccionada (Habitar 1 = 2032 / 6 años; Habitar 12 = 2044 / 18 años).</li>
         <li>Los montos en pesos ($) se calculan con el valor UF del día indicado (fuente mindicador.cl) y son solo referenciales.</li>
         <li>La tipología incluye la cantidad de estacionamientos y bodegas indicada.</li>
         <li>Precios, unidades, estacionamientos y bodegas están sujetos a disponibilidad de stock y a confirmación comercial en suscripción de contrato.</li>
