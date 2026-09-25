@@ -1569,6 +1569,7 @@ const TIPOLOGIAS = {
     superficie: 53.6,
     bodegas: 2,
     estacionamientos: 2,
+    equipUf: 50,
   },
   plenitud: {
     id: "plenitud",
@@ -1576,6 +1577,7 @@ const TIPOLOGIAS = {
     superficie: 73.5,
     bodegas: 2,
     estacionamientos: 2,
+    equipUf: 50,
   },
 };
 
@@ -1783,7 +1785,7 @@ function valorTotalTipologia(tipo) {
     tipo.superficie * PRECIO_UF_M2 +
       tipo.estacionamientos * OPT_ESTAC_UF +
       tipo.bodegas * OPT_BODEGA_UF +
-      OPT_EQUIP_UF,
+      (tipo.equipUf ?? OPT_EQUIP_UF),
     2
   );
 }
@@ -1811,7 +1813,7 @@ function calc(state) {
   const nBodega = tipo ? tipo.bodegas : 0;
   const estacUf = nEstac * OPT_ESTAC_UF;
   const bodegaUf = nBodega * OPT_BODEGA_UF;
-  const equipUf = tipo ? OPT_EQUIP_UF : 0;
+  const equipUf = tipo ? tipo.equipUf ?? OPT_EQUIP_UF : 0;
   const extrasUf = estacUf + bodegaUf + equipUf;
   const precioLista = excelRound(precioDepto + extrasUf, 2);
 
@@ -2948,7 +2950,7 @@ function abrirPlanes(form, aplicar) {
   const calcPrecio = (tipo) => {
     const estacUf = tipo.estacionamientos * OPT_ESTAC_UF;
     const bodegaUf = tipo.bodegas * OPT_BODEGA_UF;
-    const equipUf = OPT_EQUIP_UF;
+    const equipUf = tipo.equipUf ?? OPT_EQUIP_UF;
     const deptoDescUf = tipo.superficie * (PRECIO_UF_M2 - PRECIO_UF_M2_PROMO);
     const promoUf =
       (optDepto ? deptoDescUf : 0) +
